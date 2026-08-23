@@ -1,0 +1,8 @@
+{
+  "name": "Expense Tracker",
+  "description": "A modern, offline-first personal expense and income tracker with budget management, categories, monthly reports, and data export/import.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
