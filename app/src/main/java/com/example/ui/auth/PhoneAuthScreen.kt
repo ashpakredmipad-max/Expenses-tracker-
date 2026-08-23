@@ -27,6 +27,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.PhoneAuthOptions
 import com.google.firebase.auth.PhoneAuthProvider
 import java.util.concurrent.TimeUnit
+import androidx.compose.ui.unit.dp
 
 @Composable
 fun PhoneAuthScreen(onSignedIn: () -> Unit) {
