@@ -9,13 +9,17 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.data.local.database.AppDatabase
 import com.example.data.repository.ExpenseRepository
+import com.example.ui.auth.PhoneAuthScreen
 import com.example.ui.navigation.ExpenseApp
 import com.example.ui.theme.ExpenseTrackerTheme
 import com.example.viewmodel.ExpenseViewModel
+import com.google.firebase.auth.FirebaseAuth
 
 class MainActivity : ComponentActivity() {
 
@@ -25,9 +29,16 @@ class MainActivity : ComponentActivity() {
         ExpenseViewModel.Factory(application, repository)
     }
 
+    private var isSignedIn by mutableStateOf(FirebaseAuth.getInstance().currentUser != null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        FirebaseAuth.getInstance().addAuthStateListener { auth ->
+            isSignedIn = auth.currentUser != null
+        }
+
         setContent {
             val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
             val isDark = when (themeMode) {
@@ -38,7 +49,11 @@ class MainActivity : ComponentActivity() {
 
             ExpenseTrackerTheme(darkTheme = isDark) {
                 Surface(modifier = Modifier.fillMaxSize()) {
-                    ExpenseApp(viewModel = viewModel)
+                    if (isSignedIn) {
+                        ExpenseApp(viewModel = viewModel)
+                    } else {
+                        PhoneAuthScreen(onSignedIn = { isSignedIn = true })
+                    }
                 }
             }
         }
