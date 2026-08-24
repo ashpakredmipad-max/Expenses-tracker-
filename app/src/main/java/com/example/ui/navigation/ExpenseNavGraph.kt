@@ -3,10 +3,12 @@ package com.example.ui.navigation
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.PieChart
 import androidx.compose.material.icons.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Dashboard
 import androidx.compose.material.icons.outlined.PieChart
 import androidx.compose.material.icons.outlined.ReceiptLong
@@ -31,6 +33,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.ui.budget.BudgetScreen
+import com.example.ui.calendar.CalendarScreen
 import com.example.ui.categories.CategoriesScreen
 import com.example.ui.dashboard.DashboardScreen
 import com.example.ui.reports.ReportsScreen
@@ -47,6 +50,7 @@ sealed class Screen(
 ) {
     object Dashboard : Screen("dashboard", "Home", Icons.Filled.Dashboard, Icons.Outlined.Dashboard)
     object Transactions : Screen("transactions", "Transactions", Icons.Filled.ReceiptLong, Icons.Outlined.ReceiptLong)
+    object Calendar : Screen("calendar", "Calendar", Icons.Filled.CalendarMonth, Icons.Outlined.CalendarMonth)
     object Reports : Screen("reports", "Reports", Icons.Filled.PieChart, Icons.Outlined.PieChart)
     object Settings : Screen("settings", "Settings", Icons.Filled.Settings, Icons.Outlined.Settings)
 }
@@ -54,6 +58,7 @@ sealed class Screen(
 val bottomNavScreens = listOf(
     Screen.Dashboard,
     Screen.Transactions,
+    Screen.Calendar,
     Screen.Reports,
     Screen.Settings
 )
@@ -65,7 +70,6 @@ fun ExpenseApp(
 ) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
-
     val isBottomBarVisible = bottomNavScreens.any { it.route == currentRoute }
 
     Scaffold(
@@ -92,9 +96,7 @@ fun ExpenseApp(
                             onClick = {
                                 if (currentRoute != screen.route) {
                                     navController.navigate(screen.route) {
-                                        popUpTo(navController.graph.findStartDestination().id) {
-                                            saveState = true
-                                        }
+                                        popUpTo(navController.graph.findStartDestination().id) { saveState = true }
                                         launchSingleTop = true
                                         restoreState = true
                                     }
@@ -112,7 +114,6 @@ fun ExpenseApp(
             startDestination = Screen.Dashboard.route,
             modifier = Modifier.padding(innerPadding)
         ) {
-            // Dashboard
             composable(Screen.Dashboard.route) {
                 DashboardScreen(
                     viewModel = viewModel,
@@ -123,7 +124,6 @@ fun ExpenseApp(
                 )
             }
 
-            // Transactions History
             composable(Screen.Transactions.route) {
                 TransactionsHistoryScreen(
                     viewModel = viewModel,
@@ -132,7 +132,10 @@ fun ExpenseApp(
                 )
             }
 
-            // Reports
+            composable(Screen.Calendar.route) {
+                CalendarScreen(viewModel = viewModel)
+            }
+
             composable(Screen.Reports.route) {
                 ReportsScreen(
                     viewModel = viewModel,
@@ -140,7 +143,6 @@ fun ExpenseApp(
                 )
             }
 
-            // Settings
             composable(Screen.Settings.route) {
                 SettingsScreen(
                     viewModel = viewModel,
@@ -149,7 +151,6 @@ fun ExpenseApp(
                 )
             }
 
-            // Add Transaction
             composable("add_transaction") {
                 AddEditTransactionScreen(
                     viewModel = viewModel,
@@ -159,7 +160,6 @@ fun ExpenseApp(
                 )
             }
 
-            // Edit Transaction
             composable(
                 route = "edit_transaction/{transactionId}",
                 arguments = listOf(navArgument("transactionId") { type = NavType.LongType })
@@ -173,7 +173,6 @@ fun ExpenseApp(
                 )
             }
 
-            // Categories Screen
             composable("categories") {
                 CategoriesScreen(
                     viewModel = viewModel,
@@ -181,7 +180,6 @@ fun ExpenseApp(
                 )
             }
 
-            // Budget Screen
             composable("budget") {
                 BudgetScreen(
                     viewModel = viewModel,
