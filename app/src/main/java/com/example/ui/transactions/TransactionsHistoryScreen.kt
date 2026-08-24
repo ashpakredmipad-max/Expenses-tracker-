@@ -98,9 +98,7 @@ fun TransactionsHistoryScreen(
     }
 
     Scaffold(
-        modifier = modifier.fillMaxSize(),
-        
-        }
+        modifier = modifier.fillMaxSize()
     ) { innerPadding ->
         LazyColumn(
             modifier = Modifier
