@@ -102,9 +102,13 @@ fun TransactionsHistoryScreen(
     ) { innerPadding ->
         LazyColumn(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding),
-            contentPadding = PaddingValues(16.dp),
+                .fillMaxSize(),
+            
+            contentPadding = PaddingValues(
+    start = 16.dp,
+    end = 16.dp,
+    bottom = 16.dp
+),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             // Search Box
