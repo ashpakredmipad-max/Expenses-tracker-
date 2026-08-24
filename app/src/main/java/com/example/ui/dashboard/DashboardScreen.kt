@@ -85,9 +85,13 @@ fun DashboardScreen(
     ) { innerPadding ->
         LazyColumn(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+                .fillMaxSize(),
+                
+            contentPadding = PaddingValues(
+    start = 16.dp,
+    end = 16.dp,
+    bottom = 16.dp
+),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // Month Selector
