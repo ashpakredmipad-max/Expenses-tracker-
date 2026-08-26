@@ -2,7 +2,6 @@ package com.example.ui.dashboard
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -28,14 +27,11 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -84,17 +80,14 @@ fun DashboardScreen(
         }
     ) { innerPadding ->
         LazyColumn(
-            modifier = Modifier
-                .fillMaxSize(),
-                
+            modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(
-    start = 16.dp,
-    end = 16.dp,
-    bottom = 16.dp
-),
+                start = 16.dp,
+                end = 16.dp,
+                bottom = 16.dp
+            ),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Month Selector
             item {
                 MonthSelectorBar(
                     monthYearDisplay = monthYearDisplay,
@@ -104,7 +97,6 @@ fun DashboardScreen(
                 )
             }
 
-            // Top Financial Summary Card (Total Balance, Income, Expense)
             item {
                 FinancialSummaryCard(
                     totalBalancePaise = monthSummary.balanceInPaise,
@@ -113,13 +105,16 @@ fun DashboardScreen(
                 )
             }
 
-            // Quick Stats Row: Month Expense & Today's Expense
+            // Wallet balances directly below Income / Expenses summary.
+            item {
+                WalletsDashboardSection()
+            }
+
             item {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    // Month Expense Stat
                     Card(
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(16.dp),
@@ -128,9 +123,7 @@ fun DashboardScreen(
                         ),
                         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                     ) {
-                        Column(
-                            modifier = Modifier.padding(14.dp)
-                        ) {
+                        Column(modifier = Modifier.padding(14.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(
                                     imageVector = Icons.Default.AccountBalanceWallet,
@@ -155,7 +148,6 @@ fun DashboardScreen(
                         }
                     }
 
-                    // Today Expense Stat
                     Card(
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(16.dp),
@@ -164,9 +156,7 @@ fun DashboardScreen(
                         ),
                         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                     ) {
-                        Column(
-                            modifier = Modifier.padding(14.dp)
-                        ) {
+                        Column(modifier = Modifier.padding(14.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(
                                     imageVector = Icons.Default.CalendarToday,
@@ -193,7 +183,6 @@ fun DashboardScreen(
                 }
             }
 
-            // Budget Widget
             item {
                 if (budgetEntity != null && budgetEntity!!.budgetInPaise > 0) {
                     BudgetStatusCard(
@@ -254,7 +243,6 @@ fun DashboardScreen(
                 }
             }
 
-            // Recent Transactions Section Header
             item {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -284,7 +272,6 @@ fun DashboardScreen(
                 }
             }
 
-            // Recent Transactions List or Empty State
             if (recentTransactions.isEmpty()) {
                 item {
                     EmptyStateView(
@@ -302,7 +289,6 @@ fun DashboardScreen(
                 }
             }
 
-            // Bottom spacing for FAB
             item {
                 Spacer(modifier = Modifier.height(48.dp))
             }
