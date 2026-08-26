@@ -39,8 +39,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -81,15 +79,14 @@ fun TransactionsHistoryScreen(
     val allCategories by viewModel.allCategories.collectAsStateWithLifecycle()
 
     var showCategoryDropdown by remember { mutableStateOf(false) }
+    var showWalletManager by remember { mutableStateOf(false) }
     var transactionToDelete by remember { mutableStateOf<TransactionEntity?>(null) }
 
-    // Group transactions by date
     val groupedTransactions = remember(filteredTransactions) {
         filteredTransactions.groupBy { DateUtils.getStartOfDay(it.date) }
             .toSortedMap(compareByDescending { it })
     }
 
-    // Totals of currently visible transactions
     val totalVisibleIncome = remember(filteredTransactions) {
         filteredTransactions.filter { it.type == "INCOME" }.sumOf { it.amountInPaise }
     }
@@ -97,41 +94,39 @@ fun TransactionsHistoryScreen(
         filteredTransactions.filter { it.type == "EXPENSE" }.sumOf { it.amountInPaise }
     }
 
-    Scaffold(
-        modifier = modifier.fillMaxSize()
-    ) { innerPadding ->
+    Scaffold(modifier = modifier.fillMaxSize()) {
         LazyColumn(
-            modifier = Modifier
-                .fillMaxSize(),
-            
-            contentPadding = PaddingValues(
-    start = 16.dp,
-    end = 16.dp,
-    bottom = 16.dp
-),
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Search Box
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(onClick = { showWalletManager = true }) {
+                        Text("Wallets")
+                    }
+                }
+            }
+
             item {
                 OutlinedTextField(
                     value = searchQuery,
                     onValueChange = { viewModel.searchQuery.value = it },
                     placeholder = { Text("Search by category, note, amount...") },
-                    leadingIcon = {
-                        Icon(imageVector = Icons.Default.Search, contentDescription = "Search")
-                    },
+                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search") },
                     trailingIcon = {
                         if (searchQuery.isNotEmpty()) {
                             IconButton(onClick = { viewModel.searchQuery.value = "" }) {
-                                Icon(imageVector = Icons.Default.Clear, contentDescription = "Clear")
+                                Icon(Icons.Default.Clear, contentDescription = "Clear")
                             }
                         }
                     },
                     singleLine = true,
                     shape = RoundedCornerShape(16.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("search_transactions_input"),
+                    modifier = Modifier.fillMaxWidth().testTag("search_transactions_input"),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedContainerColor = MaterialTheme.colorScheme.surface,
                         unfocusedContainerColor = MaterialTheme.colorScheme.surface
@@ -139,14 +134,12 @@ fun TransactionsHistoryScreen(
                 )
             }
 
-            // Filter Chips
             item {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Type Filter: ALL
                     FilterChip(
                         selected = filterType == "ALL",
                         onClick = { viewModel.filterType.value = "ALL" },
@@ -156,8 +149,6 @@ fun TransactionsHistoryScreen(
                             selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
                         )
                     )
-
-                    // Type Filter: EXPENSE
                     FilterChip(
                         selected = filterType == "EXPENSE",
                         onClick = { viewModel.filterType.value = "EXPENSE" },
@@ -167,8 +158,6 @@ fun TransactionsHistoryScreen(
                             selectedLabelColor = ExpenseRed
                         )
                     )
-
-                    // Type Filter: INCOME
                     FilterChip(
                         selected = filterType == "INCOME",
                         onClick = { viewModel.filterType.value = "INCOME" },
@@ -178,8 +167,6 @@ fun TransactionsHistoryScreen(
                             selectedLabelColor = IncomeGreen
                         )
                     )
-
-                    // Filter by Month Toggle
                     FilterChip(
                         selected = filterMonthOnly,
                         onClick = { viewModel.filterMonthOnly.value = !filterMonthOnly },
@@ -188,14 +175,10 @@ fun TransactionsHistoryScreen(
                 }
             }
 
-            // Category Filter Dropdown
             item {
                 Box {
                     Surface(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { showCategoryDropdown = true }
-                            .testTag("filter_category_dropdown"),
+                        modifier = Modifier.fillMaxWidth().clickable { showCategoryDropdown = true }.testTag("filter_category_dropdown"),
                         shape = RoundedCornerShape(12.dp),
                         color = MaterialTheme.colorScheme.surface,
                         tonalElevation = 1.dp
@@ -206,12 +189,7 @@ fun TransactionsHistoryScreen(
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    imageVector = Icons.Default.FilterList,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(18.dp)
-                                )
+                                Icon(Icons.Default.FilterList, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
                                     text = if (filterCategory == "ALL" || filterCategory == null) "All Categories" else "Category: $filterCategory",
@@ -220,41 +198,28 @@ fun TransactionsHistoryScreen(
                                 )
                             }
                             if (filterCategory != "ALL" && filterCategory != null) {
-                                TextButton(
-                                    onClick = { viewModel.filterCategory.value = "ALL" },
-                                    contentPadding = PaddingValues(0.dp)
-                                ) {
+                                TextButton(onClick = { viewModel.filterCategory.value = "ALL" }, contentPadding = PaddingValues(0.dp)) {
                                     Text("Reset")
                                 }
                             }
                         }
                     }
 
-                    DropdownMenu(
-                        expanded = showCategoryDropdown,
-                        onDismissRequest = { showCategoryDropdown = false }
-                    ) {
+                    DropdownMenu(expanded = showCategoryDropdown, onDismissRequest = { showCategoryDropdown = false }) {
                         DropdownMenuItem(
                             text = { Text("All Categories", fontWeight = FontWeight.Bold) },
-                            onClick = {
-                                viewModel.filterCategory.value = "ALL"
-                                showCategoryDropdown = false
-                            }
+                            onClick = { viewModel.filterCategory.value = "ALL"; showCategoryDropdown = false }
                         )
                         allCategories.map { it.name }.distinct().forEach { catName ->
                             DropdownMenuItem(
                                 text = { Text(catName) },
-                                onClick = {
-                                    viewModel.filterCategory.value = catName
-                                    showCategoryDropdown = false
-                                }
+                                onClick = { viewModel.filterCategory.value = catName; showCategoryDropdown = false }
                             )
                         }
                     }
                 }
             }
 
-            // Summary of filtered results
             if (filteredTransactions.isNotEmpty()) {
                 item {
                     Surface(
@@ -263,9 +228,7 @@ fun TransactionsHistoryScreen(
                         shape = RoundedCornerShape(12.dp)
                     ) {
                         Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 14.dp, vertical = 10.dp),
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -274,7 +237,6 @@ fun TransactionsHistoryScreen(
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
-
                             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                 if (totalVisibleIncome > 0) {
                                     Text(
@@ -298,15 +260,11 @@ fun TransactionsHistoryScreen(
                 }
             }
 
-            // Empty state or Grouped Transactions
             if (groupedTransactions.isEmpty()) {
                 item {
                     EmptyStateView(
                         message = "No matching transactions",
-                        subMessage = if (searchQuery.isNotEmpty() || filterType != "ALL" || filterCategory != "ALL")
-                            "Try clearing your search or filters to see more results"
-                        else
-                            "Tap the button below to add your first transaction",
+                        subMessage = if (searchQuery.isNotEmpty() || filterType != "ALL" || filterCategory != "ALL") "Try clearing your search or filters to see more results" else "Tap the button below to add your first transaction",
                         onAddClick = onNavigateToAddTransaction
                     )
                 }
@@ -315,56 +273,37 @@ fun TransactionsHistoryScreen(
                     item(key = "header_$dayStartMillis") {
                         val dayTotalExpense = txList.filter { it.type == "EXPENSE" }.sumOf { it.amountInPaise }
                         val dayTotalIncome = txList.filter { it.type == "INCOME" }.sumOf { it.amountInPaise }
-
                         Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(top = 8.dp, bottom = 4.dp),
+                            modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 4.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
+                            Text(DateUtils.getRelativeDateHeader(dayStartMillis), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                             Text(
-                                text = DateUtils.getRelativeDateHeader(dayStartMillis),
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-
-                            Text(
-                                text = if (dayTotalExpense > 0) "-${CurrencyUtils.formatPaise(dayTotalExpense, showDecimals = false)}"
-                                else "+${CurrencyUtils.formatPaise(dayTotalIncome, showDecimals = false)}",
+                                text = if (dayTotalExpense > 0) "-${CurrencyUtils.formatPaise(dayTotalExpense, showDecimals = false)}" else "+${CurrencyUtils.formatPaise(dayTotalIncome, showDecimals = false)}",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.outline
                             )
                         }
                     }
-
                     items(txList, key = { it.id }) { tx ->
-                        TransactionCard(
-                            transaction = tx,
-                            onClick = { onNavigateToEditTransaction(tx.id) }
-                        )
+                        TransactionCard(transaction = tx, onClick = { onNavigateToEditTransaction(tx.id) })
                     }
                 }
             }
 
-            item {
-                Spacer(modifier = Modifier.height(24.dp))
-            }
+            item { Spacer(modifier = Modifier.height(24.dp)) }
         }
     }
 
-    // Delete dialog
+    if (showWalletManager) {
+        WalletManagerDialog(onDismiss = { showWalletManager = false })
+    }
+
     if (transactionToDelete != null) {
         AlertDialog(
             onDismissRequest = { transactionToDelete = null },
-            icon = {
-                Icon(
-                    imageVector = Icons.Default.Delete,
-                    contentDescription = null,
-                    tint = ExpenseRed
-                )
-            },
+            icon = { Icon(Icons.Default.Delete, contentDescription = null, tint = ExpenseRed) },
             title = { Text("Delete Transaction?") },
             text = { Text("Are you sure you want to delete this transaction for ${CurrencyUtils.formatPaise(transactionToDelete!!.amountInPaise)}?") },
             confirmButton = {
@@ -375,15 +314,9 @@ fun TransactionsHistoryScreen(
                         viewModel.deleteTransaction(id)
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = ExpenseRed)
-                ) {
-                    Text("Delete", color = Color.White)
-                }
+                ) { Text("Delete", color = Color.White) }
             },
-            dismissButton = {
-                TextButton(onClick = { transactionToDelete = null }) {
-                    Text("Cancel")
-                }
-            }
+            dismissButton = { TextButton(onClick = { transactionToDelete = null }) { Text("Cancel") } }
         )
     }
 }
