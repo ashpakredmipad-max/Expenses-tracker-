@@ -24,9 +24,9 @@ import com.example.viewmodel.ExpenseViewModel
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
+import okhttp3.Request
 import org.json.JSONObject
-import java.net.HttpURLConnection
-import java.net.URL
 
 private const val LATEST_RELEASE_URL = "https://api.github.com/repos/ashpakredmipad-max/Expenses-tracker-/releases/latest"
 
@@ -50,24 +50,32 @@ fun SettingsScreen(viewModel: ExpenseViewModel,onNavigateToCategories:()->Unit={
  }}
  if(updateChecking){AlertDialog(onDismissRequest={},title={Text("Checking for Updates")},text={Row(verticalAlignment=Alignment.CenterVertically){CircularProgressIndicator(modifier=Modifier.size(24.dp));Spacer(Modifier.width(16.dp));Text("Checking GitHub for the latest version...")}},confirmButton={})}
  updateDialog?.let { info ->
-  AlertDialog(onDismissRequest={updateDialog=null},title={Text(if(info.error)"Update Check Failed" else if(info.available)"Update Available" else "You're up to date")},text={Text(if(info.error)"Could not check GitHub right now. Please check your internet connection and try again." else if(info.available)"Version ${info.version} is available. Your current version is ${info.currentVersion}." else "You're using the latest version (${info.currentVersion}).")},confirmButton={if(info.error||!info.available){TextButton(onClick={updateDialog=null}){Text("OK")}}else{Button(onClick={context.startActivity(Intent(Intent.ACTION_VIEW,Uri.parse(info.url)));updateDialog=null}){Text("Download Update")}}},dismissButton={if(info.available&&!info.error)TextButton(onClick={updateDialog=null}){Text("Cancel")}})
+  AlertDialog(onDismissRequest={updateDialog=null},title={Text(if(info.error)"Update Check Failed" else if(info.available)"Update Available" else "You're up to date")},text={Text(if(info.error)info.errorMessage else if(info.available)"Version ${info.version} is available. Your current version is ${info.currentVersion}." else "You're using the latest version (${info.currentVersion}).")},confirmButton={if(info.error||!info.available){TextButton(onClick={updateDialog=null}){Text("OK")}}else{Button(onClick={context.startActivity(Intent(Intent.ACTION_VIEW,Uri.parse(info.url)));updateDialog=null}){Text("Download Update")}}},dismissButton={if(info.available&&!info.error)TextButton(onClick={updateDialog=null}){Text("Cancel")}})
  }
  if(showResetDialog){AlertDialog(onDismissRequest={if(!resetInProgress)showResetDialog=false},icon={Icon(Icons.Default.DeleteForever,null,tint=ExpenseRed)},title={Text("Reset Data?")},text={Text("This will permanently delete all your transactions. Wallet balances calculated from those transactions will become ₹0. Your categories will not be deleted.")},confirmButton={Button(enabled=!resetInProgress,onClick={resetInProgress=true;viewModel.resetData({resetInProgress=false;showResetDialog=false;android.widget.Toast.makeText(context,"All transactions deleted. Wallets are now ₹0",android.widget.Toast.LENGTH_SHORT).show()},{resetInProgress=false;android.widget.Toast.makeText(context,"Reset failed. Please try again.",android.widget.Toast.LENGTH_SHORT).show()})},colors=ButtonDefaults.buttonColors(containerColor=ExpenseRed)){Text(if(resetInProgress)"Resetting..." else "Reset Data",color=Color.White)}},dismissButton={TextButton(enabled=!resetInProgress,onClick={showResetDialog=false}){Text("Cancel")}})}
  if(showLogoutDialog){AlertDialog(onDismissRequest={showLogoutDialog=false},icon={Icon(Icons.Default.Logout,null,tint=MaterialTheme.colorScheme.error)},title={Text("Logout?")},text={Text("Are you sure you want to logout?")},confirmButton={Button(onClick={showLogoutDialog=false;FirebaseAuth.getInstance().signOut()}){Text("Logout")}},dismissButton={TextButton(onClick={showLogoutDialog=false}){Text("Cancel")}})}
 }
 
-data class UpdateInfo(val available:Boolean,val version:String,val currentVersion:String,val url:String,val error:Boolean=false)
+data class UpdateInfo(val available:Boolean,val version:String,val currentVersion:String,val url:String,val error:Boolean=false,val errorMessage:String="")
 
 private suspend fun checkForUpdate(): UpdateInfo = withContext(Dispatchers.IO) {
  val current=com.example.BuildConfig.VERSION_NAME
- try{
-  val connection=URL(LATEST_RELEASE_URL).openConnection() as HttpURLConnection
-  connection.requestMethod="GET";connection.connectTimeout=8000;connection.readTimeout=8000;connection.setRequestProperty("Accept","application/vnd.github+json");connection.setRequestProperty("User-Agent","Expense-Tracker-Android")
-  if(connection.responseCode !in 200..299)return@withContext UpdateInfo(false,"",current,"",true)
-  val body=connection.inputStream.bufferedReader().use{it.readText()}
-  val json=JSONObject(body);val latest=json.optString("tag_name").removePrefix("v");val url=json.optString("html_url")
-  UpdateInfo(isNewerVersion(latest,current),latest,current,url)
- }catch(_:Exception){UpdateInfo(false,"",current,"",true)}
+ try {
+  val request=Request.Builder().url(LATEST_RELEASE_URL).header("Accept","application/vnd.github+json").header("User-Agent","Expense-Tracker-Android").build()
+  OkHttpClient().newCall(request).execute().use { response ->
+   if(!response.isSuccessful) return@withContext UpdateInfo(false,"",current,"",true,"GitHub returned HTTP ${response.code}.")
+   val body=response.body?.string() ?: return@withContext UpdateInfo(false,"",current,"",true,"GitHub returned an empty response.")
+   val json=JSONObject(body)
+   val latest=json.optString("tag_name").removePrefix("v").trim()
+   if(latest.isBlank()) return@withContext UpdateInfo(false,"",current,"",true,"Latest release version was not found.")
+   val assets=json.optJSONArray("assets")
+   var downloadUrl=json.optString("html_url")
+   if(assets!=null){for(i in 0 until assets.length()){val asset=assets.optJSONObject(i);if(asset?.optString("name")=="app-release.apk"){downloadUrl=asset.optString("browser_download_url",downloadUrl);break}}}
+   UpdateInfo(isNewerVersion(latest,current),latest,current,downloadUrl)
+  }
+ } catch(e:Exception) {
+  UpdateInfo(false,"",current,"",true,"Could not connect to GitHub: ${e.javaClass.simpleName}.")
+ }
 }
 
 private fun isNewerVersion(latest:String,current:String):Boolean{
