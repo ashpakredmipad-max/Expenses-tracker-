@@ -30,6 +30,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -78,14 +79,10 @@ fun DashboardScreen(
                 )
             }
         }
-    ) { innerPadding ->
+    ) { _ ->
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(
-                start = 16.dp,
-                end = 16.dp,
-                bottom = 16.dp
-            ),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             item {
@@ -96,7 +93,6 @@ fun DashboardScreen(
                     onCurrentMonth = { viewModel.setCurrentMonth() }
                 )
             }
-
             item {
                 FinancialSummaryCard(
                     totalBalancePaise = monthSummary.balanceInPaise,
@@ -104,85 +100,43 @@ fun DashboardScreen(
                     totalExpensePaise = monthSummary.totalExpenseInPaise
                 )
             }
-
-            // Wallet balances directly below Income / Expenses summary.
+            item { WalletsDashboardSection() }
             item {
-                WalletsDashboardSection()
-            }
-
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     Card(
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surface
-                        ),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                     ) {
                         Column(modifier = Modifier.padding(14.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    imageVector = Icons.Default.AccountBalanceWallet,
-                                    contentDescription = null,
-                                    tint = ExpenseRed,
-                                    modifier = Modifier.size(18.dp)
-                                )
+                                Icon(Icons.Default.AccountBalanceWallet, null, tint = ExpenseRed, modifier = Modifier.size(18.dp))
                                 Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = "This Month",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
+                                Text("This Month", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                             Spacer(modifier = Modifier.height(6.dp))
-                            Text(
-                                text = CurrencyUtils.formatPaise(monthSummary.totalExpenseInPaise, showDecimals = false),
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
+                            Text(CurrencyUtils.formatPaise(monthSummary.totalExpenseInPaise, showDecimals = false), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
                         }
                     }
-
                     Card(
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surface
-                        ),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                     ) {
                         Column(modifier = Modifier.padding(14.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    imageVector = Icons.Default.CalendarToday,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.tertiary,
-                                    modifier = Modifier.size(18.dp)
-                                )
+                                Icon(Icons.Default.CalendarToday, null, tint = MaterialTheme.colorScheme.tertiary, modifier = Modifier.size(18.dp))
                                 Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = "Today's Spent",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
+                                Text("Today's Spent", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                             Spacer(modifier = Modifier.height(6.dp))
-                            Text(
-                                text = CurrencyUtils.formatPaise(monthSummary.todayExpenseInPaise, showDecimals = false),
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
+                            Text(CurrencyUtils.formatPaise(monthSummary.todayExpenseInPaise, showDecimals = false), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
                         }
                     }
                 }
             }
-
             item {
                 if (budgetEntity != null && budgetEntity!!.budgetInPaise > 0) {
                     BudgetStatusCard(
@@ -192,86 +146,34 @@ fun DashboardScreen(
                     )
                 } else {
                     Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onNavigateToBudget() }
-                            .testTag("set_budget_banner"),
+                        modifier = Modifier.fillMaxWidth().clickable { onNavigateToBudget() }.testTag("set_budget_banner"),
                         shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f)
-                        )
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f))
                     ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Savings,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(24.dp)
-                                )
+                        Row(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                                Icon(Icons.Default.Savings, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
                                 Spacer(modifier = Modifier.width(12.dp))
                                 Column {
-                                    Text(
-                                        text = "Set a Monthly Budget",
-                                        style = MaterialTheme.typography.titleSmall,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onSecondaryContainer
-                                    )
-                                    Text(
-                                        text = "Track your spending limit for $monthYearDisplay",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f)
-                                    )
+                                    Text("Set a Monthly Budget", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSecondaryContainer)
+                                    Text("Track your spending limit for $monthYearDisplay", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f))
                                 }
                             }
-                            Icon(
-                                imageVector = Icons.Default.ChevronRight,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSecondaryContainer
-                            )
+                            Icon(Icons.Default.ChevronRight, null, tint = MaterialTheme.colorScheme.onSecondaryContainer)
                         }
                     }
                 }
             }
-
             item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Recent Transactions",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Text("Recent Transactions", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
                     if (recentTransactions.isNotEmpty()) {
-                        TextButton(
-                            onClick = onNavigateToTransactions,
-                            modifier = Modifier.testTag("see_all_transactions_button")
-                        ) {
-                            Text(
-                                text = "See All",
-                                style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.primary
-                            )
+                        TextButton(onClick = onNavigateToTransactions, modifier = Modifier.testTag("see_all_transactions_button")) {
+                            Text("See All", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.primary)
                         }
                     }
                 }
             }
-
             if (recentTransactions.isEmpty()) {
                 item {
                     EmptyStateView(
@@ -282,16 +184,10 @@ fun DashboardScreen(
                 }
             } else {
                 items(recentTransactions, key = { it.id }) { item ->
-                    TransactionCard(
-                        transaction = item,
-                        onClick = { onNavigateToEditTransaction(item.id) }
-                    )
+                    TransactionCard(transaction = item, onClick = { onNavigateToEditTransaction(item.id) })
                 }
             }
-
-            item {
-                Spacer(modifier = Modifier.height(48.dp))
-            }
+            item { Spacer(modifier = Modifier.height(48.dp)) }
         }
     }
 }
