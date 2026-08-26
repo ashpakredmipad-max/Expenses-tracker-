@@ -132,7 +132,6 @@ fun AddEditTransactionScreen(
         }
     }
 
-    // If editing, load initial transaction data
     LaunchedEffect(transactionId, allTransactions) {
         if (isEditMode) {
             val existing = allTransactions.firstOrNull { it.id == transactionId }
@@ -155,7 +154,6 @@ fun AddEditTransactionScreen(
         }
     }
 
-    // Auto-select first category if none selected when category list changes
     val currentCategories = if (selectedType == "EXPENSE") expenseCategories else incomeCategories
     LaunchedEffect(currentCategories, selectedType) {
         if (selectedCategory == null || selectedCategory?.type != selectedType) {
@@ -178,10 +176,7 @@ fun AddEditTransactionScreen(
                         onClick = onNavigateBack,
                         modifier = Modifier.testTag("back_button")
                     ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back"
-                        )
+                        Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
                 actions = {
@@ -190,24 +185,16 @@ fun AddEditTransactionScreen(
                             onClick = { showDeleteConfirmDialog = true },
                             modifier = Modifier.testTag("delete_transaction_button")
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Delete,
-                                contentDescription = "Delete Transaction",
-                                tint = ExpenseRed
-                            )
+                            Icon(Icons.Default.Delete, contentDescription = "Delete Transaction", tint = ExpenseRed)
                         }
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                )
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
             )
         }
     ) { innerPadding ->
         LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding),
+            modifier = Modifier.fillMaxSize().padding(innerPadding),
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
@@ -220,10 +207,7 @@ fun AddEditTransactionScreen(
                             selectedCategory = expenseCategories.firstOrNull()
                         },
                         shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
-                        colors = SegmentedButtonDefaults.colors(
-                            activeContainerColor = ExpenseRed.copy(alpha = 0.15f),
-                            activeContentColor = ExpenseRed
-                        ),
+                        colors = SegmentedButtonDefaults.colors(activeContainerColor = ExpenseRed.copy(alpha = 0.15f), activeContentColor = ExpenseRed),
                         modifier = Modifier.testTag("type_expense_button")
                     ) { Text("Expense", fontWeight = FontWeight.Bold) }
 
@@ -234,10 +218,7 @@ fun AddEditTransactionScreen(
                             selectedCategory = incomeCategories.firstOrNull()
                         },
                         shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
-                        colors = SegmentedButtonDefaults.colors(
-                            activeContainerColor = IncomeGreen.copy(alpha = 0.15f),
-                            activeContentColor = IncomeGreen
-                        ),
+                        colors = SegmentedButtonDefaults.colors(activeContainerColor = IncomeGreen.copy(alpha = 0.15f), activeContentColor = IncomeGreen),
                         modifier = Modifier.testTag("type_income_button")
                     ) { Text("Income", fontWeight = FontWeight.Bold) }
                 }
@@ -250,17 +231,10 @@ fun AddEditTransactionScreen(
                     tonalElevation = 2.dp,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Column(
-                        modifier = Modifier.padding(20.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
+                    Column(modifier = Modifier.padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                         Text("Enter Amount", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Spacer(modifier = Modifier.height(10.dp))
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center, modifier = Modifier.fillMaxWidth()) {
                             Text(
                                 text = "₹",
                                 style = MaterialTheme.typography.headlineLarge.copy(fontSize = 36.sp),
@@ -280,10 +254,7 @@ fun AddEditTransactionScreen(
                                 textStyle = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold, fontSize = 32.sp),
                                 singleLine = true,
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = Color.Transparent,
-                                    unfocusedBorderColor = Color.Transparent
-                                ),
+                                colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Color.Transparent, unfocusedBorderColor = Color.Transparent),
                                 modifier = Modifier.width(220.dp).testTag("amount_input")
                             )
                         }
@@ -295,14 +266,9 @@ fun AddEditTransactionScreen(
                 }
             }
 
-            // Category Selection
             item {
                 Column {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                         Text("Select Category", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                         TextButton(onClick = onNavigateToCategories, modifier = Modifier.testTag("manage_categories_button")) {
                             Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
@@ -311,11 +277,7 @@ fun AddEditTransactionScreen(
                         }
                     }
                     Spacer(modifier = Modifier.height(10.dp))
-                    FlowRow(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
+                    FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         for (category in currentCategories) {
                             val isSelected = selectedCategory?.id == category.id
                             val catColor = CategoryIconHelper.parseColor(category.colorHex)
@@ -324,31 +286,14 @@ fun AddEditTransactionScreen(
                                 color = if (isSelected) catColor.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surface,
                                 tonalElevation = if (isSelected) 3.dp else 1.dp,
                                 modifier = Modifier
-                                    .border(
-                                        width = if (isSelected) 2.dp else 1.dp,
-                                        color = if (isSelected) catColor else MaterialTheme.colorScheme.outlineVariant,
-                                        shape = RoundedCornerShape(12.dp)
-                                    )
+                                    .border(if (isSelected) 2.dp else 1.dp, if (isSelected) catColor else MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp))
                                     .clickable { selectedCategory = category }
                                     .testTag("category_chip_${category.name}")
                             ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(
-                                        imageVector = CategoryIconHelper.getIcon(category.iconName),
-                                        contentDescription = category.name,
-                                        tint = catColor,
-                                        modifier = Modifier.size(20.dp)
-                                    )
+                                Row(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(CategoryIconHelper.getIcon(category.iconName), contentDescription = category.name, tint = catColor, modifier = Modifier.size(20.dp))
                                     Spacer(modifier = Modifier.width(8.dp))
-                                    Text(
-                                        text = category.name,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                        color = if (isSelected) catColor else MaterialTheme.colorScheme.onSurface
-                                    )
+                                    Text(category.name, style = MaterialTheme.typography.bodyMedium, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal, color = if (isSelected) catColor else MaterialTheme.colorScheme.onSurface)
                                 }
                             }
                         }
@@ -356,19 +301,11 @@ fun AddEditTransactionScreen(
                 }
             }
 
-            // Wallet Selection - same style/pattern as Categories
             item {
                 Column {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                         Text("Select Wallet", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                        TextButton(
-                            onClick = { showWalletManager = true },
-                            modifier = Modifier.testTag("manage_wallets_button")
-                        ) {
+                        TextButton(onClick = { showWalletManager = true }, modifier = Modifier.testTag("manage_wallets_button")) {
                             Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(4.dp))
                             Text("New / Manage")
@@ -376,32 +313,15 @@ fun AddEditTransactionScreen(
                     }
                     Spacer(modifier = Modifier.height(10.dp))
                     if (wallets.isEmpty()) {
-                        Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = MaterialTheme.colorScheme.surface,
-                            tonalElevation = 1.dp,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    Icons.Default.AccountBalanceWallet,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(20.dp)
-                                )
+                        Surface(shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.surface, tonalElevation = 1.dp, modifier = Modifier.fillMaxWidth()) {
+                            Row(modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.AccountBalanceWallet, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text("No wallets yet. Tap New / Manage to add one.")
                             }
                         }
                     } else {
-                        FlowRow(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
+                        FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             for (wallet in wallets) {
                                 val isSelected = selectedWallet?.id == wallet.id
                                 Surface(
@@ -409,29 +329,14 @@ fun AddEditTransactionScreen(
                                     color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surface,
                                     tonalElevation = if (isSelected) 3.dp else 1.dp,
                                     modifier = Modifier
-                                        .border(
-                                            width = if (isSelected) 2.dp else 1.dp,
-                                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
-                                            shape = RoundedCornerShape(12.dp)
-                                        )
+                                        .border(if (isSelected) 2.dp else 1.dp, if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp))
                                         .clickable { selectedWallet = wallet }
                                         .testTag("wallet_chip_${wallet.name}")
                                 ) {
-                                    Row(
-                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Icon(
-                                            Icons.Default.AccountBalanceWallet,
-                                            contentDescription = wallet.name,
-                                            tint = MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier.size(20.dp)
-                                        )
+                                    Row(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(Icons.Default.AccountBalanceWallet, contentDescription = wallet.name, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
                                         Spacer(modifier = Modifier.width(8.dp))
-                                        Text(
-                                            wallet.name,
-                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-                                        )
+                                        Text(wallet.name, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal)
                                     }
                                 }
                             }
@@ -451,11 +356,7 @@ fun AddEditTransactionScreen(
                         tonalElevation = 1.dp,
                         border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
                     ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
+                        Row(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(Icons.Default.CalendarMonth, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                                 Spacer(modifier = Modifier.width(12.dp))
@@ -496,7 +397,11 @@ fun AddEditTransactionScreen(
                             errorMessage = "Please select a category"
                             return@Button
                         }
-                        if (wallets.isNotEmpty() && selectedWallet == null) {
+                        if (wallets.isEmpty()) {
+                            errorMessage = "Please add a wallet first"
+                            return@Button
+                        }
+                        if (selectedWallet == null) {
                             errorMessage = "Please select a wallet"
                             return@Button
                         }
@@ -508,7 +413,18 @@ fun AddEditTransactionScreen(
                             category = category,
                             date = selectedDateMillis,
                             note = noteInput,
-                            onComplete = onNavigateBack
+                            onComplete = {
+                                if (!isEditMode) {
+                                    WalletBalanceManager.applyTransaction(
+                                        walletId = selectedWallet!!.id,
+                                        type = selectedType,
+                                        amountInPaise = paise,
+                                        onComplete = onNavigateBack
+                                    )
+                                } else {
+                                    onNavigateBack()
+                                }
+                            }
                         )
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = if (selectedType == "EXPENSE") ExpenseRed else IncomeGreen),
@@ -517,12 +433,7 @@ fun AddEditTransactionScreen(
                 ) {
                     Icon(Icons.Default.Check, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        if (isEditMode) "Update Transaction" else "Save Transaction",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
+                    Text(if (isEditMode) "Update Transaction" else "Save Transaction", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Color.White)
                 }
             }
         }
@@ -542,7 +453,8 @@ fun AddEditTransactionScreen(
                     showDatePicker = false
                 }) { Text("OK") }
             },
-            dismissButton = { TextButton(onClick = { showDatePicker = false }) { Text("Cancel") } }
+            dismissButton = { TextButton(onClick = { showDatePicker = false }) { Text("Cancel") }
+            }
         ) { DatePicker(state = datePickerState) }
     }
 
