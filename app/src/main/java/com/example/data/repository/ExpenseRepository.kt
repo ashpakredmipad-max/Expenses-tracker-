@@ -111,6 +111,18 @@ class ExpenseRepository(private val database: AppDatabase) {
         if (cloudTransactions.isNotEmpty()) transactionDao.insertAll(cloudTransactions)
     }
 
+    /** Permanently removes every transaction locally and from the signed-in user's cloud data. */
+    suspend fun resetAllTransactions() = withContext(Dispatchers.IO) {
+        val uid = auth.currentUser?.uid
+        if (uid != null) {
+            val snapshot = Tasks.await(transactionsCollection(uid).get())
+            for (document in snapshot.documents) {
+                Tasks.await(document.reference.delete())
+            }
+        }
+        transactionDao.deleteAllTransactions()
+    }
+
     val allCategories: Flow<List<CategoryEntity>> = categoryDao.getAllCategories()
     fun getCategoriesByType(type: String): Flow<List<CategoryEntity>> = categoryDao.getCategoriesByType(type)
     suspend fun getCategoryById(id: Long): CategoryEntity? = categoryDao.getCategoryById(id)
