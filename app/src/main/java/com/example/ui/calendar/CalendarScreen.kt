@@ -1,5 +1,6 @@
 package com.example.ui.calendar
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -23,7 +24,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.viewmodel.ExpenseViewModel
@@ -39,7 +42,10 @@ fun CalendarScreen(viewModel: ExpenseViewModel, modifier: Modifier = Modifier) {
     val firstDay = (calendar.clone() as Calendar).apply { set(Calendar.DAY_OF_MONTH, 1) }
     val daysInMonth = firstDay.getActualMaximum(Calendar.DAY_OF_MONTH)
     val firstWeekday = firstDay.get(Calendar.DAY_OF_WEEK) - 1
-    val expensesByDay = transactions.filter { it.type.equals("EXPENSE", true) && isSameMonth(it.date, calendar) }.groupBy { dayOfMonth(it.date) }.mapValues { (_, list) -> list.sumOf { it.amountInPaise } }
+    val expensesByDay = transactions.filter { it.type.equals("EXPENSE", true) && isSameMonth(it.date, calendar) }
+        .groupBy { dayOfMonth(it.date) }
+        .mapValues { (_, list) -> list.sumOf { it.amountInPaise } }
+    val maxExpense = expensesByDay.values.maxOrNull() ?: 0L
 
     Column(modifier = modifier.fillMaxSize().padding(16.dp)) {
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
@@ -50,21 +56,24 @@ fun CalendarScreen(viewModel: ExpenseViewModel, modifier: Modifier = Modifier) {
         Spacer(Modifier.height(12.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
             listOf("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat").forEach {
-                Text(it, modifier = Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.Center, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                Text(it, modifier = Modifier.weight(1f), textAlign = TextAlign.Center, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
             }
         }
         Spacer(Modifier.height(8.dp))
         val cells = buildList<Int?> { repeat(firstWeekday) { add(null) }; for (day in 1..daysInMonth) add(day) }
         LazyVerticalGrid(columns = GridCells.Fixed(7), modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            items(cells) { day -> if (day == null) Spacer(Modifier.height(72.dp)) else CalendarDay(day, expensesByDay[day] ?: 0L) }
+            items(cells) { day -> if (day == null) Spacer(Modifier.height(72.dp)) else CalendarDay(day, expensesByDay[day] ?: 0L, maxExpense) }
         }
     }
 }
 
 @Composable
-private fun CalendarDay(day: Int, expenseInPaise: Long) {
+private fun CalendarDay(day: Int, expenseInPaise: Long, maxExpense: Long) {
+    val intensity = if (expenseInPaise <= 0L || maxExpense <= 0L) 0f else (expenseInPaise.toFloat() / maxExpense.toFloat()).coerceIn(0f, 1f)
+    // Keep the heatmap deliberately soft so the existing red text remains readable.
+    val background = if (intensity == 0f) Color.Transparent else Color(0xFFFF5252).copy(alpha = 0.08f + intensity * 0.20f)
     Card(modifier = Modifier.fillMaxWidth().height(72.dp)) {
-        Column(modifier = Modifier.fillMaxSize().padding(6.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.SpaceBetween) {
+        Column(modifier = Modifier.fillMaxSize().background(background).padding(6.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.SpaceBetween) {
             Text(day.toString(), fontWeight = FontWeight.Bold)
             Text(if (expenseInPaise > 0) "₹${formatAmount(expenseInPaise)}" else "—", style = MaterialTheme.typography.labelSmall, color = if (expenseInPaise > 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.outline, fontWeight = FontWeight.SemiBold)
         }
