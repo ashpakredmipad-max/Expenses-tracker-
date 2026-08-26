@@ -23,6 +23,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Check
@@ -52,12 +53,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -66,14 +67,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.data.local.database.entity.CategoryEntity
-import com.example.data.local.database.entity.TransactionEntity
-import com.example.ui.components.CategoryIconBadge
 import com.example.ui.theme.ExpenseRed
 import com.example.ui.theme.IncomeGreen
 import com.example.utils.CategoryIconHelper
 import com.example.utils.CurrencyUtils
 import com.example.utils.DateUtils
 import com.example.viewmodel.ExpenseViewModel
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -92,12 +93,44 @@ fun AddEditTransactionScreen(
     var selectedType by remember { mutableStateOf("EXPENSE") }
     var amountInput by remember { mutableStateOf("") }
     var selectedCategory by remember { mutableStateOf<CategoryEntity?>(null) }
+    var selectedWallet by remember { mutableStateOf<Wallet?>(null) }
     var selectedDateMillis by remember { mutableLongStateOf(System.currentTimeMillis()) }
     var noteInput by remember { mutableStateOf("") }
 
     var showDatePicker by remember { mutableStateOf(false) }
     var showDeleteConfirmDialog by remember { mutableStateOf(false) }
+    var showWalletManager by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    val wallets = remember { mutableStateListOf<Wallet>() }
+    val uid = FirebaseAuth.getInstance().currentUser?.uid
+    val walletCollection = remember(uid) {
+        uid?.let {
+            FirebaseFirestore.getInstance()
+                .collection("users")
+                .document(it)
+                .collection("wallets")
+        }
+    }
+
+    LaunchedEffect(uid) {
+        walletCollection?.addSnapshotListener { snapshot, _ ->
+            wallets.clear()
+            snapshot?.documents?.mapNotNull { doc ->
+                Wallet(
+                    id = doc.id,
+                    name = doc.getString("name") ?: "",
+                    balance = doc.getDouble("balance") ?: 0.0
+                )
+            }?.let(wallets::addAll)
+        }
+    }
+
+    LaunchedEffect(wallets) {
+        if (selectedWallet == null || wallets.none { it.id == selectedWallet?.id }) {
+            selectedWallet = wallets.firstOrNull()
+        }
+    }
 
     // If editing, load initial transaction data
     LaunchedEffect(transactionId, allTransactions) {
@@ -178,11 +211,8 @@ fun AddEditTransactionScreen(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            // Type Selector: Expense / Income
             item {
-                SingleChoiceSegmentedButtonRow(
-                    modifier = Modifier.fillMaxWidth()
-                ) {
+                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                     SegmentedButton(
                         selected = selectedType == "EXPENSE",
                         onClick = {
@@ -195,12 +225,7 @@ fun AddEditTransactionScreen(
                             activeContentColor = ExpenseRed
                         ),
                         modifier = Modifier.testTag("type_expense_button")
-                    ) {
-                        Text(
-                            text = "Expense",
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
+                    ) { Text("Expense", fontWeight = FontWeight.Bold) }
 
                     SegmentedButton(
                         selected = selectedType == "INCOME",
@@ -214,16 +239,10 @@ fun AddEditTransactionScreen(
                             activeContentColor = IncomeGreen
                         ),
                         modifier = Modifier.testTag("type_income_button")
-                    ) {
-                        Text(
-                            text = "Income",
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
+                    ) { Text("Income", fontWeight = FontWeight.Bold) }
                 }
             }
 
-            // Amount Input Card
             item {
                 Surface(
                     color = MaterialTheme.colorScheme.surface,
@@ -235,14 +254,8 @@ fun AddEditTransactionScreen(
                         modifier = Modifier.padding(20.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Text(
-                            text = "Enter Amount",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-
+                        Text("Enter Amount", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Spacer(modifier = Modifier.height(10.dp))
-
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.Center,
@@ -254,42 +267,29 @@ fun AddEditTransactionScreen(
                                 fontWeight = FontWeight.Bold,
                                 color = if (selectedType == "EXPENSE") ExpenseRed else IncomeGreen
                             )
-
                             Spacer(modifier = Modifier.width(8.dp))
-
                             OutlinedTextField(
                                 value = amountInput,
                                 onValueChange = { input ->
-                                    // Allow numbers and at most one decimal point with 2 decimals
                                     if (input.isEmpty() || input.matches(Regex("^\\d*\\.?\\d{0,2}$"))) {
                                         amountInput = input
                                         errorMessage = null
                                     }
                                 },
                                 placeholder = { Text("0.00", fontSize = 28.sp) },
-                                textStyle = MaterialTheme.typography.headlineMedium.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 32.sp
-                                ),
+                                textStyle = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold, fontSize = 32.sp),
                                 singleLine = true,
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                                 colors = OutlinedTextFieldDefaults.colors(
                                     focusedBorderColor = Color.Transparent,
                                     unfocusedBorderColor = Color.Transparent
                                 ),
-                                modifier = Modifier
-                                    .width(220.dp)
-                                    .testTag("amount_input")
+                                modifier = Modifier.width(220.dp).testTag("amount_input")
                             )
                         }
-
                         if (errorMessage != null) {
                             Spacer(modifier = Modifier.height(6.dp))
-                            Text(
-                                text = errorMessage!!,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = ExpenseRed
-                            )
+                            Text(errorMessage!!, style = MaterialTheme.typography.bodySmall, color = ExpenseRed)
                         }
                     }
                 }
@@ -303,25 +303,14 @@ fun AddEditTransactionScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = "Select Category",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-
-                        TextButton(
-                            onClick = onNavigateToCategories,
-                            modifier = Modifier.testTag("manage_categories_button")
-                        ) {
-                            Icon(imageVector = Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Text("Select Category", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        TextButton(onClick = onNavigateToCategories, modifier = Modifier.testTag("manage_categories_button")) {
+                            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(4.dp))
                             Text("New / Manage")
                         }
                     }
-
                     Spacer(modifier = Modifier.height(10.dp))
-
                     FlowRow(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -330,7 +319,6 @@ fun AddEditTransactionScreen(
                         for (category in currentCategories) {
                             val isSelected = selectedCategory?.id == category.id
                             val catColor = CategoryIconHelper.parseColor(category.colorHex)
-
                             Surface(
                                 shape = RoundedCornerShape(12.dp),
                                 color = if (isSelected) catColor.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surface,
@@ -368,85 +356,132 @@ fun AddEditTransactionScreen(
                 }
             }
 
-            // Date Picker Field
+            // Wallet Selection - same style/pattern as Categories
             item {
                 Column {
-                    Text(
-                        text = "Date",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Select Wallet", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        TextButton(
+                            onClick = { showWalletManager = true },
+                            modifier = Modifier.testTag("manage_wallets_button")
+                        ) {
+                            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("New / Manage")
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(10.dp))
+                    if (wallets.isEmpty()) {
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.surface,
+                            tonalElevation = 1.dp,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    Icons.Default.AccountBalanceWallet,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("No wallets yet. Tap New / Manage to add one.")
+                            }
+                        }
+                    } else {
+                        FlowRow(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            for (wallet in wallets) {
+                                val isSelected = selectedWallet?.id == wallet.id
+                                Surface(
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surface,
+                                    tonalElevation = if (isSelected) 3.dp else 1.dp,
+                                    modifier = Modifier
+                                        .border(
+                                            width = if (isSelected) 2.dp else 1.dp,
+                                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
+                                            shape = RoundedCornerShape(12.dp)
+                                        )
+                                        .clickable { selectedWallet = wallet }
+                                        .testTag("wallet_chip_${wallet.name}")
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            Icons.Default.AccountBalanceWallet,
+                                            contentDescription = wallet.name,
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            wallet.name,
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
 
+            item {
+                Column {
+                    Text("Date", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(8.dp))
-
                     Surface(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { showDatePicker = true }
-                            .testTag("date_picker_trigger"),
+                        modifier = Modifier.fillMaxWidth().clickable { showDatePicker = true }.testTag("date_picker_trigger"),
                         shape = RoundedCornerShape(14.dp),
                         color = MaterialTheme.colorScheme.surface,
                         tonalElevation = 1.dp,
                         border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
                     ) {
                         Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
+                            modifier = Modifier.fillMaxWidth().padding(16.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    imageVector = Icons.Default.CalendarMonth,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
+                                Icon(Icons.Default.CalendarMonth, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                                 Spacer(modifier = Modifier.width(12.dp))
-                                Text(
-                                    text = DateUtils.formatFullDate(selectedDateMillis),
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    fontWeight = FontWeight.Medium,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
+                                Text(DateUtils.formatFullDate(selectedDateMillis), style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
                             }
-                            Text(
-                                text = "Change",
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.primary
-                            )
+                            Text("Change", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
                         }
                     }
                 }
             }
 
-            // Note (Optional)
             item {
                 Column {
-                    Text(
-                        text = "Note (Optional)",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-
+                    Text("Note (Optional)", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(8.dp))
-
                     OutlinedTextField(
                         value = noteInput,
                         onValueChange = { noteInput = it },
                         placeholder = { Text("e.g. Grocery shopping at supermarket, dinner with friends") },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("note_input"),
+                        modifier = Modifier.fillMaxWidth().testTag("note_input"),
                         shape = RoundedCornerShape(14.dp),
                         maxLines = 3
                     )
                 }
             }
 
-            // Save Button
             item {
                 Spacer(modifier = Modifier.height(10.dp))
                 Button(
@@ -461,6 +496,10 @@ fun AddEditTransactionScreen(
                             errorMessage = "Please select a category"
                             return@Button
                         }
+                        if (wallets.isNotEmpty() && selectedWallet == null) {
+                            errorMessage = "Please select a wallet"
+                            return@Button
+                        }
 
                         viewModel.saveTransaction(
                             id = transactionId,
@@ -472,19 +511,14 @@ fun AddEditTransactionScreen(
                             onComplete = onNavigateBack
                         )
                     },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (selectedType == "EXPENSE") ExpenseRed else IncomeGreen
-                    ),
+                    colors = ButtonDefaults.buttonColors(containerColor = if (selectedType == "EXPENSE") ExpenseRed else IncomeGreen),
                     shape = RoundedCornerShape(16.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp)
-                        .testTag("save_transaction_button")
+                    modifier = Modifier.fillMaxWidth().height(56.dp).testTag("save_transaction_button")
                 ) {
-                    Icon(imageVector = Icons.Default.Check, contentDescription = null)
+                    Icon(Icons.Default.Check, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = if (isEditMode) "Update Transaction" else "Save Transaction",
+                        if (isEditMode) "Update Transaction" else "Save Transaction",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = Color.White
@@ -494,46 +528,28 @@ fun AddEditTransactionScreen(
         }
     }
 
-    // Material 3 Date Picker Dialog
+    if (showWalletManager) {
+        WalletManagerDialog(onDismiss = { showWalletManager = false })
+    }
+
     if (showDatePicker) {
-        val datePickerState = rememberDatePickerState(
-            initialSelectedDateMillis = selectedDateMillis
-        )
+        val datePickerState = rememberDatePickerState(initialSelectedDateMillis = selectedDateMillis)
         DatePickerDialog(
             onDismissRequest = { showDatePicker = false },
             confirmButton = {
-                TextButton(
-                    onClick = {
-                        datePickerState.selectedDateMillis?.let {
-                            selectedDateMillis = it
-                        }
-                        showDatePicker = false
-                    }
-                ) {
-                    Text("OK")
-                }
+                TextButton(onClick = {
+                    datePickerState.selectedDateMillis?.let { selectedDateMillis = it }
+                    showDatePicker = false
+                }) { Text("OK") }
             },
-            dismissButton = {
-                TextButton(onClick = { showDatePicker = false }) {
-                    Text("Cancel")
-                }
-            }
-        ) {
-            DatePicker(state = datePickerState)
-        }
+            dismissButton = { TextButton(onClick = { showDatePicker = false }) { Text("Cancel") } }
+        ) { DatePicker(state = datePickerState) }
     }
 
-    // Delete Confirmation Dialog
     if (showDeleteConfirmDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteConfirmDialog = false },
-            icon = {
-                Icon(
-                    imageVector = Icons.Default.Delete,
-                    contentDescription = null,
-                    tint = ExpenseRed
-                )
-            },
+            icon = { Icon(Icons.Default.Delete, contentDescription = null, tint = ExpenseRed) },
             title = { Text("Delete Transaction?") },
             text = { Text("Are you sure you want to permanently delete this transaction?") },
             confirmButton = {
@@ -543,15 +559,9 @@ fun AddEditTransactionScreen(
                         viewModel.deleteTransaction(transactionId, onComplete = onNavigateBack)
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = ExpenseRed)
-                ) {
-                    Text("Delete", color = Color.White)
-                }
+                ) { Text("Delete", color = Color.White) }
             },
-            dismissButton = {
-                TextButton(onClick = { showDeleteConfirmDialog = false }) {
-                    Text("Cancel")
-                }
-            }
+            dismissButton = { TextButton(onClick = { showDeleteConfirmDialog = false }) { Text("Cancel") } }
         )
     }
 }
