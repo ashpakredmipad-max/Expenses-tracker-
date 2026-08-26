@@ -42,10 +42,10 @@ fun CalendarScreen(viewModel: ExpenseViewModel, modifier: Modifier = Modifier) {
     val firstDay = (calendar.clone() as Calendar).apply { set(Calendar.DAY_OF_MONTH, 1) }
     val daysInMonth = firstDay.getActualMaximum(Calendar.DAY_OF_MONTH)
     val firstWeekday = firstDay.get(Calendar.DAY_OF_WEEK) - 1
-    val expensesByDay = transactions.filter { it.type.equals("EXPENSE", true) && isSameMonth(it.date, calendar) }
-        .groupBy { dayOfMonth(it.date) }
-        .mapValues { (_, list) -> list.sumOf { it.amountInPaise } }
-    val maxExpense = expensesByDay.values.maxOrNull() ?: 0L
+    val monthExpenses = transactions.filter { it.type.equals("EXPENSE", true) && isSameMonth(it.date, calendar) }
+    val expensesByDay = monthExpenses.groupBy { dayOfMonth(it.date) }.mapValues { (_, list) -> list.sumOf { it.amountInPaise } }
+    val monthTotal = monthExpenses.sumOf { it.amountInPaise }
+    val maxDailyExpense = expensesByDay.values.maxOrNull() ?: 0L
 
     Column(modifier = modifier.fillMaxSize().padding(16.dp)) {
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
@@ -53,7 +53,17 @@ fun CalendarScreen(viewModel: ExpenseViewModel, modifier: Modifier = Modifier) {
             Text(monthTitle, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
             IconButton(onClick = { viewModel.nextMonth() }) { Icon(Icons.Default.ChevronRight, contentDescription = "Next month") }
         }
-        Spacer(Modifier.height(12.dp))
+
+        Card(modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)) {
+            Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Column {
+                    Text("Monthly Expenses", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("₹${formatAmount(monthTotal)}", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.error)
+                }
+                Text("${monthExpenses.size} expenses", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
             listOf("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat").forEach {
                 Text(it, modifier = Modifier.weight(1f), textAlign = TextAlign.Center, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
@@ -62,19 +72,18 @@ fun CalendarScreen(viewModel: ExpenseViewModel, modifier: Modifier = Modifier) {
         Spacer(Modifier.height(8.dp))
         val cells = buildList<Int?> { repeat(firstWeekday) { add(null) }; for (day in 1..daysInMonth) add(day) }
         LazyVerticalGrid(columns = GridCells.Fixed(7), modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            items(cells) { day -> if (day == null) Spacer(Modifier.height(72.dp)) else CalendarDay(day, expensesByDay[day] ?: 0L, maxExpense) }
+            items(cells) { day -> if (day == null) Spacer(Modifier.height(72.dp)) else CalendarDay(day, expensesByDay[day] ?: 0L, maxDailyExpense) }
         }
     }
 }
 
 @Composable
-private fun CalendarDay(day: Int, expenseInPaise: Long, maxExpense: Long) {
-    val intensity = if (expenseInPaise <= 0L || maxExpense <= 0L) 0f else (expenseInPaise.toFloat() / maxExpense.toFloat()).coerceIn(0f, 1f)
-    // Keep the heatmap deliberately soft so the existing red text remains readable.
-    val background = if (intensity == 0f) Color.Transparent else Color(0xFFFF5252).copy(alpha = 0.08f + intensity * 0.20f)
+private fun CalendarDay(day: Int, expenseInPaise: Long, maxDailyExpense: Long) {
+    val intensity = if (maxDailyExpense > 0L) (expenseInPaise.toFloat() / maxDailyExpense.toFloat()).coerceIn(0f, 1f) else 0f
+    val background = if (expenseInPaise > 0L) Color(0xFFFF0000).copy(alpha = 0.06f + (intensity * 0.22f)) else Color.Transparent
     Card(modifier = Modifier.fillMaxWidth().height(72.dp)) {
         Column(modifier = Modifier.fillMaxSize().background(background).padding(6.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.SpaceBetween) {
-            Text(day.toString(), fontWeight = FontWeight.Bold)
+            Text(day.toString(), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.error)
             Text(if (expenseInPaise > 0) "₹${formatAmount(expenseInPaise)}" else "—", style = MaterialTheme.typography.labelSmall, color = if (expenseInPaise > 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.outline, fontWeight = FontWeight.SemiBold)
         }
     }
