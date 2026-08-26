@@ -28,14 +28,15 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.ui.theme.ExpenseRed
@@ -55,7 +56,7 @@ fun SettingsScreen(
     var showLogoutDialog by remember { mutableStateOf(false) }
     var resetInProgress by remember { mutableStateOf(false) }
 
-    Scaffold(modifier = modifier.fillMaxSize()) { innerPadding ->
+    Scaffold(modifier = modifier.fillMaxSize()) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(16.dp),
@@ -113,9 +114,7 @@ fun SettingsScreen(
             },
             title = { Text("Reset Data?") },
             text = {
-                Text(
-                    "This will permanently delete all your transactions. Wallet balances calculated from those transactions will become ₹0. Your categories will not be deleted."
-                )
+                Text("This will permanently delete all your transactions. Wallet balances calculated from those transactions will become ₹0. Your categories will not be deleted.")
             },
             confirmButton = {
                 Button(
@@ -160,12 +159,10 @@ fun SettingsScreen(
             title = { Text("Logout?") },
             text = { Text("Are you sure you want to logout?") },
             confirmButton = {
-                Button(
-                    onClick = {
-                        showLogoutDialog = false
-                        FirebaseAuth.getInstance().signOut()
-                    }
-                ) {
+                Button(onClick = {
+                    showLogoutDialog = false
+                    FirebaseAuth.getInstance().signOut()
+                }) {
                     Text("Logout")
                 }
             },
@@ -192,7 +189,7 @@ private fun SettingsItem(
             .fillMaxWidth()
             .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 18.dp)
-            .then(Modifier.testTag(testTag)),
+            .testTag(testTag),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
