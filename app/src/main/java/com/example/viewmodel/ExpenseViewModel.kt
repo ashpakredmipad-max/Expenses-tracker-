@@ -134,7 +134,7 @@ class ExpenseViewModel(
     }
     fun deleteTransaction(id: Long, onComplete: () -> Unit = {}) { viewModelScope.launch { repository.deleteTransactionById(id); onComplete() } }
 
-    fun addCategory(name: String, type: String, iconName: String, colorHex: String, onComplete: (Boolean) -> Unit) { viewModelScope.launch { if (name.isBlank()) { onComplete(false); return@launch }; repository.insertCategory(CategoryEntity(name.trim(), type, iconName, colorHex, false)); onComplete(true) } }
+    fun addCategory(name: String, type: String, iconName: String, colorHex: String, onComplete: (Boolean) -> Unit) { viewModelScope.launch { if (name.isBlank()) { onComplete(false); return@launch }; repository.insertCategory(CategoryEntity(name = name.trim(), type = type, iconName = iconName, colorHex = colorHex, isDefault = false)); onComplete(true) } }
     fun updateCategory(category: CategoryEntity, onComplete: () -> Unit) { viewModelScope.launch { repository.updateCategory(category); onComplete() } }
     fun checkCategoryUsage(categoryId: Long, onResult: (Int) -> Unit) { viewModelScope.launch { onResult(repository.getTransactionCountForCategory(categoryId)) } }
     fun deleteCategory(category: CategoryEntity, reassignFallbackCategory: CategoryEntity? = null, onComplete: () -> Unit) { viewModelScope.launch { if (reassignFallbackCategory != null) repository.reassignCategoryTransactions(category.id, reassignFallbackCategory); repository.deleteCategory(category); onComplete() } }
