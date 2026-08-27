@@ -35,12 +35,12 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.example.data.local.database.AppDatabase
 import com.example.data.local.database.entity.CategoryEntity
-import com.example.data.local.database.entity.RegisteredUpiEntity
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -126,6 +126,7 @@ private fun RegisterUpiDialog(initialName: String, database: AppDatabase, onDism
     var categoryMenu by remember { mutableStateOf(false) }
     var walletMenu by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
+    var saving by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         categories = withContext(Dispatchers.IO) { database.categoryDao().getAllCategoriesDirect().filter { it.type == "EXPENSE" } }
@@ -141,28 +142,29 @@ private fun RegisterUpiDialog(initialName: String, database: AppDatabase, onDism
     }
 
     AlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = { if (!saving) onDismiss() },
         title = { Text("Register UPI") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                OutlinedTextField(value = upiName, onValueChange = { upiName = it }, singleLine = true, label = { Text("UPI Name") }, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = upiName, onValueChange = { upiName = it }, singleLine = true, label = { Text("UPI Name") }, modifier = Modifier.fillMaxWidth(), enabled = !saving)
                 Column {
-                    Button(onClick = { categoryMenu = true }, modifier = Modifier.fillMaxWidth()) { Text(selectedCategory?.name ?: "Select Category") }
+                    Button(onClick = { categoryMenu = true }, modifier = Modifier.fillMaxWidth(), enabled = !saving) { Text(selectedCategory?.name ?: "Select Category") }
                     DropdownMenu(expanded = categoryMenu, onDismissRequest = { categoryMenu = false }) {
                         categories.forEach { category -> DropdownMenuItem(text = { Text(category.name) }, onClick = { selectedCategory = category; categoryMenu = false }) }
                     }
                 }
                 Column {
-                    Button(onClick = { walletMenu = true }, modifier = Modifier.fillMaxWidth()) { Text(selectedWallet?.name ?: "Select Wallet") }
+                    Button(onClick = { walletMenu = true }, modifier = Modifier.fillMaxWidth(), enabled = !saving) { Text(selectedWallet?.name ?: "Select Wallet") }
                     DropdownMenu(expanded = walletMenu, onDismissRequest = { walletMenu = false }) {
                         wallets.forEach { wallet -> DropdownMenuItem(text = { Text(wallet.name) }, onClick = { selectedWallet = wallet; walletMenu = false }) }
                     }
                 }
+                if (wallets.isEmpty()) Text("No wallets found.", color = MaterialTheme.colorScheme.error)
                 error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             }
         },
         confirmButton = {
-            TextButton(onClick = {
+            TextButton(enabled = !saving, onClick = {
                 val name = upiName.trim()
                 val category = selectedCategory
                 val wallet = selectedWallet
@@ -170,16 +172,38 @@ private fun RegisterUpiDialog(initialName: String, database: AppDatabase, onDism
                     name.isEmpty() -> error = "UPI name is required"
                     category == null -> error = "Select a category"
                     wallet == null -> error = "Select a wallet"
-                    else -> scope.launch(Dispatchers.IO) {
-                        val dao = database.registeredUpiDao()
-                        dao.findByName(name)?.let { dao.deleteByName(name) }
-                        dao.insert(RegisteredUpiEntity(upiName = name, categoryId = category.id, categoryName = category.name, walletName = wallet.name))
-                        withContext(Dispatchers.Main) { onDismiss() }
+                    else -> {
+                        saving = true
+                        scope.launch {
+                            try {
+                                val uid = FirebaseAuth.getInstance().currentUser?.uid ?: throw IllegalStateException("User is not logged in")
+                                val collection = FirebaseFirestore.getInstance().collection("users").document(uid).collection("registered_upi")
+                                val existing = collection.whereEqualTo("upiName", name).limit(1).get().await()
+                                val data = hashMapOf<String, Any>(
+                                    "upiName" to name,
+                                    "categoryId" to category.id,
+                                    "categoryName" to category.name,
+                                    "walletId" to wallet.id,
+                                    "walletName" to wallet.name,
+                                    "updatedAt" to com.google.firebase.Timestamp.now()
+                                )
+                                if (existing.documents.isNotEmpty()) {
+                                    existing.documents.first().reference.set(data, com.google.firebase.firestore.SetOptions.merge()).await()
+                                } else {
+                                    data["createdAt"] = com.google.firebase.Timestamp.now()
+                                    collection.add(data).await()
+                                }
+                                onDismiss()
+                            } catch (e: Exception) {
+                                error = e.message ?: "Unable to save UPI"
+                                saving = false
+                            }
+                        }
                     }
                 }
-            }) { Text("Save") }
+            }) { Text(if (saving) "Saving..." else "Save") }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+        dismissButton = { TextButton(enabled = !saving, onClick = onDismiss) { Text("Cancel") } }
     )
 }
 
