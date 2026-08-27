@@ -35,6 +35,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextUnit
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -54,12 +56,7 @@ import com.example.ui.transactions.TransactionsHistoryScreen
 import com.example.viewmodel.ExpenseViewModel
 import com.google.firebase.auth.FirebaseAuth
 
-sealed class Screen(
-    val route: String,
-    val title: String,
-    val selectedIcon: ImageVector,
-    val unselectedIcon: ImageVector
-) {
+sealed class Screen(val route: String, val title: String, val selectedIcon: ImageVector, val unselectedIcon: ImageVector) {
     object Dashboard : Screen("dashboard", "Home", Icons.Filled.Dashboard, Icons.Outlined.Dashboard)
     object Transactions : Screen("transactions", "Transactions", Icons.Filled.ReceiptLong, Icons.Outlined.ReceiptLong)
     object Calendar : Screen("calendar", "Calendar", Icons.Filled.CalendarMonth, Icons.Outlined.CalendarMonth)
@@ -83,8 +80,18 @@ fun ExpenseApp(viewModel: ExpenseViewModel, navController: NavHostController = r
         topBar = {
             if (isBottomBarVisible) {
                 TopAppBar(
-                    title = { Text(text = currentScreen.title, fontWeight = FontWeight.Bold) },
-                    colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent, scrolledContainerColor = Color.Transparent),
+                    title = {
+                        Text(
+                            text = currentScreen.title,
+                            fontWeight = FontWeight.Medium,
+                            fontSize = 22.sp,
+                            letterSpacing = 0.5.sp
+                        )
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = Color.Transparent,
+                        scrolledContainerColor = Color.Transparent
+                    ),
                     actions = {
                         IconButton(onClick = { menuExpanded = true }) { Icon(Icons.Filled.MoreVert, contentDescription = "More options") }
                         DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
@@ -120,32 +127,15 @@ fun ExpenseApp(viewModel: ExpenseViewModel, navController: NavHostController = r
         }
     ) { innerPadding ->
         NavHost(navController = navController, startDestination = Screen.Dashboard.route, modifier = Modifier.padding(innerPadding)) {
-            composable(Screen.Dashboard.route) {
-                DashboardScreen(
-                    viewModel = viewModel,
-                    onNavigateToAddTransaction = { navController.navigate("add_transaction") },
-                    onNavigateToEditTransaction = { id -> navController.navigate("edit_transaction/$id") },
-                    onNavigateToTransactions = { navController.navigate(Screen.Transactions.route) },
-                    onNavigateToBudget = { navController.navigate("budget") }
-                )
-            }
-            composable(Screen.Transactions.route) {
-                TransactionsHistoryScreen(
-                    viewModel = viewModel,
-                    onNavigateToAddTransaction = { navController.navigate("add_transaction") },
-                    onNavigateToEditTransaction = { id -> navController.navigate("edit_transaction/$id") }
-                )
-            }
-            composable(Screen.Calendar.route) { CalendarScreen(viewModel = viewModel) }
-            composable(Screen.Reports.route) { ReportsScreen(viewModel = viewModel, onNavigateToAddTransaction = { navController.navigate("add_transaction") }) }
-            composable(Screen.Settings.route) { SettingsScreen(viewModel = viewModel, onNavigateToCategories = { navController.navigate("categories") }, onNavigateToBudget = { navController.navigate("budget") }) }
-            composable("add_transaction") { AddEditTransactionScreen(viewModel = viewModel, transactionId = 0L, onNavigateBack = { navController.popBackStack() }, onNavigateToCategories = { navController.navigate("categories") }) }
-            composable("edit_transaction/{transactionId}", arguments = listOf(navArgument("transactionId") { type = NavType.LongType })) { entry ->
-                val txId = entry.arguments?.getLong("transactionId") ?: 0L
-                AddEditTransactionScreen(viewModel = viewModel, transactionId = txId, onNavigateBack = { navController.popBackStack() }, onNavigateToCategories = { navController.navigate("categories") })
-            }
-            composable("categories") { CategoriesScreen(viewModel = viewModel, onNavigateBack = { navController.popBackStack() }) }
-            composable("budget") { BudgetScreen(viewModel = viewModel, onNavigateBack = { navController.popBackStack() }) }
+            composable(Screen.Dashboard.route) { DashboardScreen(viewModel, { navController.navigate("add_transaction") }, { id -> navController.navigate("edit_transaction/$id") }, { navController.navigate(Screen.Transactions.route) }, { navController.navigate("budget") }) }
+            composable(Screen.Transactions.route) { TransactionsHistoryScreen(viewModel, { navController.navigate("add_transaction") }, { id -> navController.navigate("edit_transaction/$id") }) }
+            composable(Screen.Calendar.route) { CalendarScreen(viewModel) }
+            composable(Screen.Reports.route) { ReportsScreen(viewModel, { navController.navigate("add_transaction") }) }
+            composable(Screen.Settings.route) { SettingsScreen(viewModel, { navController.navigate("categories") }, { navController.navigate("budget") }) }
+            composable("add_transaction") { AddEditTransactionScreen(viewModel, 0L, { navController.popBackStack() }, { navController.navigate("categories") }) }
+            composable("edit_transaction/{transactionId}", arguments = listOf(navArgument("transactionId") { type = NavType.LongType })) { entry -> AddEditTransactionScreen(viewModel, entry.arguments?.getLong("transactionId") ?: 0L, { navController.popBackStack() }, { navController.navigate("categories") }) }
+            composable("categories") { CategoriesScreen(viewModel, { navController.popBackStack() }) }
+            composable("budget") { BudgetScreen(viewModel, { navController.popBackStack() }) }
         }
     }
 }
