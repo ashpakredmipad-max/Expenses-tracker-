@@ -53,6 +53,7 @@ import com.example.ui.reports.ReportsScreen
 import com.example.ui.settings.SettingsScreen
 import com.example.ui.transactions.AddEditTransactionScreen
 import com.example.ui.transactions.TransactionsHistoryScreen
+import com.example.ui.upi.UPITransactionsScreen
 import com.example.viewmodel.ExpenseViewModel
 import com.google.firebase.auth.FirebaseAuth
 
@@ -73,16 +74,17 @@ fun ExpenseApp(viewModel: ExpenseViewModel, navController: NavHostController = r
     val currentRoute = navBackStackEntry?.destination?.route
     val currentScreen = bottomNavScreens.firstOrNull { it.route == currentRoute } ?: Screen.Dashboard
     val isBottomBarVisible = bottomNavScreens.any { it.route == currentRoute }
+    val isUpiScreen = currentRoute == "upi_transactions"
     var menuExpanded by remember { mutableStateOf(false) }
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         topBar = {
-            if (isBottomBarVisible) {
+            if (isBottomBarVisible || isUpiScreen) {
                 TopAppBar(
                     title = {
                         Text(
-                            text = currentScreen.title,
+                            text = if (isUpiScreen) "UPI Transactions" else currentScreen.title,
                             style = MaterialTheme.typography.titleLarge.copy(
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 22.sp,
@@ -94,10 +96,22 @@ fun ExpenseApp(viewModel: ExpenseViewModel, navController: NavHostController = r
                         containerColor = Color.Transparent,
                         scrolledContainerColor = Color.Transparent
                     ),
+                    navigationIcon = {
+                        if (isUpiScreen) {
+                            IconButton(onClick = { navController.popBackStack() }) {
+                                Text("‹", fontSize = 36.sp)
+                            }
+                        }
+                    },
                     actions = {
-                        IconButton(onClick = { menuExpanded = true }) { Icon(Icons.Filled.MoreVert, contentDescription = "More options") }
-                        DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
-                            DropdownMenuItem(text = { Text("Logout") }, onClick = { menuExpanded = false; FirebaseAuth.getInstance().signOut() })
+                        if (isBottomBarVisible) {
+                            IconButton(onClick = { navController.navigate("upi_transactions") }) {
+                                Text("@", fontSize = 22.sp)
+                            }
+                            IconButton(onClick = { menuExpanded = true }) { Icon(Icons.Filled.MoreVert, contentDescription = "More options") }
+                            DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                                DropdownMenuItem(text = { Text("Logout") }, onClick = { menuExpanded = false; FirebaseAuth.getInstance().signOut() })
+                            }
                         }
                     }
                 )
@@ -134,6 +148,7 @@ fun ExpenseApp(viewModel: ExpenseViewModel, navController: NavHostController = r
             composable(Screen.Calendar.route) { CalendarScreen(viewModel) }
             composable(Screen.Reports.route) { ReportsScreen(viewModel, { navController.navigate("add_transaction") }) }
             composable(Screen.Settings.route) { SettingsScreen(viewModel, { navController.navigate("categories") }, { navController.navigate("budget") }) }
+            composable("upi_transactions") { UPITransactionsScreen() }
             composable("add_transaction") { AddEditTransactionScreen(viewModel, 0L, { navController.popBackStack() }, { navController.navigate("categories") }) }
             composable("edit_transaction/{transactionId}", arguments = listOf(navArgument("transactionId") { type = NavType.LongType })) { entry -> AddEditTransactionScreen(viewModel, entry.arguments?.getLong("transactionId") ?: 0L, { navController.popBackStack() }, { navController.navigate("categories") }) }
             composable("categories") { CategoriesScreen(viewModel, { navController.popBackStack() }) }
