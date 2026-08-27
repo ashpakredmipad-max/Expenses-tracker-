@@ -82,7 +82,7 @@ fun ExpenseApp(viewModel: ExpenseViewModel, navController: NavHostController = r
                     title = {
                         Text(
                             text = currentScreen.title,
-                            fontWeight = FontWeight.Medium,
+                            fontWeight = FontWeight.bold,
                             fontSize = 22.sp,
                             letterSpacing = 0.5.sp
                         )
