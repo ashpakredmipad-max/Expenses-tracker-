@@ -9,6 +9,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -125,6 +126,7 @@ fun UPITransactionsScreen(onAddTransaction: (String, String) -> Unit = { _, _ ->
     registerSender?.let { sender -> RegisterUpiDialog(sender, database) { registerSender = null } }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun RegisterUpiDialog(initialName: String, database: AppDatabase, onDismiss: () -> Unit) {
     val scope = rememberCoroutineScope()
@@ -161,12 +163,7 @@ private fun RegisterUpiDialog(initialName: String, database: AppDatabase, onDism
                         categories.forEach { category ->
                             val isSelected = selectedCategory?.id == category.id
                             val catColor = CategoryIconHelper.parseColor(category.colorHex)
-                            Surface(
-                                shape = RoundedCornerShape(12.dp),
-                                color = if (isSelected) catColor.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surface,
-                                tonalElevation = if (isSelected) 3.dp else 1.dp,
-                                modifier = Modifier.border(if (isSelected) 2.dp else 1.dp, if (isSelected) catColor else MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp)).clickable(enabled = !saving) { selectedCategory = category }
-                            ) {
+                            Surface(shape = RoundedCornerShape(12.dp), color = if (isSelected) catColor.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surface, tonalElevation = if (isSelected) 3.dp else 1.dp, modifier = Modifier.border(if (isSelected) 2.dp else 1.dp, if (isSelected) catColor else MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp)).clickable(enabled = !saving) { selectedCategory = category }) {
                                 Row(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                                     Icon(CategoryIconHelper.getIcon(category.iconName), contentDescription = category.name, tint = catColor, modifier = Modifier.size(20.dp))
                                     Spacer(Modifier.width(8.dp))
@@ -182,12 +179,7 @@ private fun RegisterUpiDialog(initialName: String, database: AppDatabase, onDism
                     FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         wallets.forEach { wallet ->
                             val isSelected = selectedWallet?.id == wallet.id
-                            Surface(
-                                shape = RoundedCornerShape(12.dp),
-                                color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surface,
-                                tonalElevation = if (isSelected) 3.dp else 1.dp,
-                                modifier = Modifier.border(if (isSelected) 2.dp else 1.dp, if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp)).clickable(enabled = !saving) { selectedWallet = wallet }
-                            ) {
+                            Surface(shape = RoundedCornerShape(12.dp), color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surface, tonalElevation = if (isSelected) 3.dp else 1.dp, modifier = Modifier.border(if (isSelected) 2.dp else 1.dp, if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp)).clickable(enabled = !saving) { selectedWallet = wallet }) {
                                 Row(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                                     Icon(Icons.Default.AccountBalanceWallet, contentDescription = wallet.name, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
                                     Spacer(Modifier.width(8.dp))
