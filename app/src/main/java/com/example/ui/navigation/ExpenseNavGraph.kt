@@ -24,14 +24,15 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
@@ -90,7 +91,16 @@ fun ExpenseApp(
         topBar = {
             if (isBottomBarVisible) {
                 TopAppBar(
-                    title = { Text(currentScreen.title) },
+                    title = {
+                        Text(
+                            text = currentScreen.title,
+                            fontWeight = FontWeight.Bold
+                        )
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = Color.Transparent,
+                        scrolledContainerColor = Color.Transparent
+                    ),
                     actions = {
                         IconButton(onClick = { menuExpanded = true }) {
                             Icon(Icons.Filled.MoreVert, contentDescription = "More options")
@@ -160,7 +170,6 @@ fun ExpenseApp(
                     onNavigateToBudget = { navController.navigate("budget") }
                 )
             }
-
             composable(Screen.Transactions.route) {
                 TransactionsHistoryScreen(
                     viewModel = viewModel,
@@ -168,18 +177,10 @@ fun ExpenseApp(
                     onNavigateToEditTransaction = { id -> navController.navigate("edit_transaction/$id") }
                 )
             }
-
-            composable(Screen.Calendar.route) {
-                CalendarScreen(viewModel = viewModel)
-            }
-
+            composable(Screen.Calendar.route) { CalendarScreen(viewModel = viewModel) }
             composable(Screen.Reports.route) {
-                ReportsScreen(
-                    viewModel = viewModel,
-                    onNavigateToAddTransaction = { navController.navigate("add_transaction") }
-                )
+                ReportsScreen(viewModel = viewModel, onNavigateToAddTransaction = { navController.navigate("add_transaction") })
             }
-
             composable(Screen.Settings.route) {
                 SettingsScreen(
                     viewModel = viewModel,
@@ -187,7 +188,6 @@ fun ExpenseApp(
                     onNavigateToBudget = { navController.navigate("budget") }
                 )
             }
-
             composable("add_transaction") {
                 AddEditTransactionScreen(
                     viewModel = viewModel,
@@ -196,11 +196,7 @@ fun ExpenseApp(
                     onNavigateToCategories = { navController.navigate("categories") }
                 )
             }
-
-            composable(
-                route = "edit_transaction/{transactionId}",
-                arguments = listOf(navArgument("transactionId") { type = NavType.LongType })
-            ) { backStackEntry ->
+            composable("edit_transaction/{transactionId}", arguments = listOf(navArgument("transactionId") { type = NavType.LongType })) { backStackEntry ->
                 val txId = backStackEntry.arguments?.getLong("transactionId") ?: 0L
                 AddEditTransactionScreen(
                     viewModel = viewModel,
@@ -209,20 +205,8 @@ fun ExpenseApp(
                     onNavigateToCategories = { navController.navigate("categories") }
                 )
             }
-
-            composable("categories") {
-                CategoriesScreen(
-                    viewModel = viewModel,
-                    onNavigateBack = { navController.popBackStack() }
-                )
-            }
-
-            composable("budget") {
-                BudgetScreen(
-                    viewModel = viewModel,
-                    onNavigateBack = { navController.popBackStack() }
-                )
-            }
+            composable("categories") { CategoriesScreen(viewModel = viewModel, onNavigateBack = { navController.popBackStack() }) }
+            composable("budget") { BudgetScreen(viewModel = viewModel, onNavigateBack = { navController.popBackStack() }) }
         }
     }
 }
