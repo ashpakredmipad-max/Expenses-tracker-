@@ -59,6 +59,7 @@ fun DashboardScreen(
     val monthSummary by viewModel.monthSummary.collectAsStateWithLifecycle()
     val monthlyTransactions by viewModel.monthlyTransactions.collectAsStateWithLifecycle()
     val budgetEntity by viewModel.currentMonthBudget.collectAsStateWithLifecycle()
+
     val recentTransactions = monthlyTransactions.take(5)
 
     Scaffold(
@@ -71,7 +72,11 @@ fun DashboardScreen(
                 shape = RoundedCornerShape(16.dp),
                 modifier = Modifier.testTag("fab_add_transaction")
             ) {
-                Icon(Icons.Default.Add, contentDescription = "Add Transaction", modifier = Modifier.size(28.dp))
+                Icon(
+                    imageVector = Icons.Default.Add,
+                    contentDescription = "Add Transaction",
+                    modifier = Modifier.size(28.dp)
+                )
             }
         }
     ) { _ ->
@@ -95,6 +100,7 @@ fun DashboardScreen(
                     totalExpensePaise = monthSummary.totalExpenseInPaise
                 )
             }
+            item { WalletsDashboardSection() }
             item {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     Card(
