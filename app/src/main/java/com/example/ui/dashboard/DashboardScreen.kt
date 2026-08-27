@@ -51,48 +51,20 @@ import com.example.utils.CurrencyUtils
 import com.example.viewmodel.ExpenseViewModel
 
 @Composable
-fun DashboardScreen(
-    viewModel: ExpenseViewModel,
-    onNavigateToAddTransaction: () -> Unit,
-    onNavigateToEditTransaction: (Long) -> Unit,
-    onNavigateToTransactions: () -> Unit,
-    onNavigateToBudget: () -> Unit,
-    modifier: Modifier = Modifier
-) {
+fun DashboardScreen(viewModel: ExpenseViewModel, onNavigateToAddTransaction: () -> Unit, onNavigateToEditTransaction: (Long) -> Unit, onNavigateToTransactions: () -> Unit, onNavigateToBudget: () -> Unit, modifier: Modifier = Modifier) {
     val monthYearDisplay by viewModel.selectedMonthYearDisplay.collectAsStateWithLifecycle()
     val monthSummary by viewModel.monthSummary.collectAsStateWithLifecycle()
     val monthlyTransactions by viewModel.monthlyTransactions.collectAsStateWithLifecycle()
     val budgetEntity by viewModel.currentMonthBudget.collectAsStateWithLifecycle()
-
     val recentTransactions = monthlyTransactions.take(5)
 
-    Scaffold(
-        modifier = modifier.fillMaxSize(),
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = onNavigateToAddTransaction,
-                containerColor = Color.Black,
-                contentColor = Color.White,
-                shape = RoundedCornerShape(18.dp),
-                modifier = Modifier.testTag("fab_add_transaction")
-            ) { Icon(Icons.Default.Add, contentDescription = "Add Transaction", modifier = Modifier.size(28.dp)) }
-        }
-    ) {
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 10.dp, bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
+    Scaffold(modifier = modifier.fillMaxSize(), floatingActionButton = {
+        FloatingActionButton(onClick = onNavigateToAddTransaction, containerColor = Color.Black, contentColor = Color.White, shape = RoundedCornerShape(18.dp), modifier = Modifier.testTag("fab_add_transaction")) { Icon(Icons.Default.Add, contentDescription = "Add Transaction", modifier = Modifier.size(28.dp)) }
+    }) { padding ->
+        LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = padding.calculateTopPadding() + 10.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            item { HomeMonthHeader(monthYearDisplay, viewModel::previousMonth, viewModel::nextMonth, viewModel::setCurrentMonth) }
             item {
-                HomeMonthHeader(monthYearDisplay, viewModel::previousMonth, viewModel::nextMonth, viewModel::setCurrentMonth)
-            }
-
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(24.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFF171717))
-                ) {
+                Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFF171717))) {
                     Column(Modifier.padding(20.dp)) {
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                             Text("Monthly Overview", color = Color.White.copy(alpha = 0.72f), style = MaterialTheme.typography.labelLarge)
@@ -109,53 +81,29 @@ fun DashboardScreen(
                     }
                 }
             }
-
             item {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     HomeStatCard(Modifier.weight(1f), "Balance", CurrencyUtils.formatPaise(monthSummary.balanceInPaise, showDecimals = false), Icons.Default.CalendarToday)
                     HomeStatCard(Modifier.weight(1f), "Today", CurrencyUtils.formatPaise(monthSummary.todayExpenseInPaise, showDecimals = false), Icons.Default.TrendingDown)
                 }
             }
-
             item {
-                if (budgetEntity != null && budgetEntity!!.budgetInPaise > 0) {
-                    BudgetStatusCard(budgetPaise = budgetEntity!!.budgetInPaise, spentPaise = monthSummary.totalExpenseInPaise, onSetBudgetClick = onNavigateToBudget)
-                } else {
-                    Card(
-                        modifier = Modifier.fillMaxWidth().clickable { onNavigateToBudget() }.testTag("set_budget_banner"),
-                        shape = RoundedCornerShape(20.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFFF2F2F2))
-                    ) {
-                        Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-                                Icon(Icons.Default.Savings, null, tint = Color.Black, modifier = Modifier.size(24.dp))
-                                Spacer(Modifier.width(12.dp))
-                                Column {
-                                    Text("Set a Monthly Budget", fontWeight = FontWeight.Bold, color = Color.Black)
-                                    Text("Track your spending limit", style = MaterialTheme.typography.bodySmall, color = Color.Black.copy(alpha = 0.58f))
-                                }
-                            }
-                            Icon(Icons.Default.ChevronRight, null, tint = Color.Black)
-                        }
+                if (budgetEntity != null && budgetEntity!!.budgetInPaise > 0) BudgetStatusCard(budgetPaise = budgetEntity!!.budgetInPaise, spentPaise = monthSummary.totalExpenseInPaise, onSetBudgetClick = onNavigateToBudget)
+                else Card(Modifier.fillMaxWidth().clickable { onNavigateToBudget() }.testTag("set_budget_banner"), shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFFF2F2F2))) {
+                    Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) { Icon(Icons.Default.Savings, null, tint = Color.Black, modifier = Modifier.size(24.dp)); Spacer(Modifier.width(12.dp)); Column { Text("Set a Monthly Budget", fontWeight = FontWeight.Bold, color = Color.Black); Text("Track your spending limit", style = MaterialTheme.typography.bodySmall, color = Color.Black.copy(alpha = 0.58f)) } }
+                        Icon(Icons.Default.ChevronRight, null, tint = Color.Black)
                     }
                 }
             }
-
             item {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                    Column {
-                        Text("Recent Transactions", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                        Text("Your latest activity", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
+                    Column { Text("Recent Transactions", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold); Text("Your latest activity", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                     if (recentTransactions.isNotEmpty()) TextButton(onClick = onNavigateToTransactions, modifier = Modifier.testTag("see_all_transactions_button")) { Text("See All", fontWeight = FontWeight.SemiBold) }
                 }
             }
-
-            if (recentTransactions.isEmpty()) {
-                item { EmptyStateView(message = "No transactions in $monthYearDisplay", subMessage = "Add your first expense or income for this month", onAddClick = onNavigateToAddTransaction) }
-            } else {
-                items(recentTransactions, key = { it.id }) { transaction -> TransactionCard(transaction = transaction, onClick = { onNavigateToEditTransaction(transaction.id) }) }
-            }
+            if (recentTransactions.isEmpty()) item { EmptyStateView(message = "No transactions in $monthYearDisplay", subMessage = "Add your first expense or income for this month", onAddClick = onNavigateToAddTransaction) }
+            else items(recentTransactions, key = { it.id }) { transaction -> TransactionCard(transaction = transaction, onClick = { onNavigateToEditTransaction(transaction.id) }) }
         }
     }
 }
@@ -164,37 +112,17 @@ fun DashboardScreen(
 private fun HomeMonthHeader(monthYearDisplay: String, onPreviousMonth: () -> Unit, onNextMonth: () -> Unit, onCurrentMonth: () -> Unit) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
         TextButton(onClick = onPreviousMonth) { Text("‹", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold) }
-        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.clickable { onCurrentMonth() }) {
-            Text("HOME", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold)
-            Text(monthYearDisplay, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-        }
+        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.clickable { onCurrentMonth() }) { Text("HOME", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold); Text(monthYearDisplay, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold) }
         TextButton(onClick = onNextMonth) { Text("›", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold) }
     }
 }
 
 @Composable
 private fun HomeMiniMetric(modifier: Modifier, title: String, value: String, tint: Color, icon: androidx.compose.ui.graphics.vector.ImageVector) {
-    Row(modifier = modifier.background(Color.White.copy(alpha = 0.08f), RoundedCornerShape(14.dp)).padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
-        Icon(icon, null, tint = tint, modifier = Modifier.size(17.dp))
-        Spacer(Modifier.width(7.dp))
-        Column {
-            Text(title, color = Color.White.copy(alpha = 0.58f), style = MaterialTheme.typography.labelSmall)
-            Text(value, color = Color.White, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        }
-    }
+    Row(modifier = modifier.background(Color.White.copy(alpha = 0.08f), RoundedCornerShape(14.dp)).padding(10.dp), verticalAlignment = Alignment.CenterVertically) { Icon(icon, null, tint = tint, modifier = Modifier.size(17.dp)); Spacer(Modifier.width(7.dp)); Column { Text(title, color = Color.White.copy(alpha = 0.58f), style = MaterialTheme.typography.labelSmall); Text(value, color = Color.White, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis) } }
 }
 
 @Composable
 private fun HomeStatCard(modifier: Modifier, title: String, value: String, icon: androidx.compose.ui.graphics.vector.ImageVector) {
-    Card(modifier = modifier, shape = RoundedCornerShape(18.dp), elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)) {
-        Column(Modifier.padding(15.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(icon, null, tint = ExpenseRed, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(7.dp))
-                Text(title, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            Spacer(Modifier.height(7.dp))
-            Text(value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-        }
-    }
+    Card(modifier = modifier, shape = RoundedCornerShape(18.dp), elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)) { Column(Modifier.padding(15.dp)) { Row(verticalAlignment = Alignment.CenterVertically) { Icon(icon, null, tint = ExpenseRed, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(7.dp)); Text(title, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }; Spacer(Modifier.height(7.dp)); Text(value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold) } }
 }
