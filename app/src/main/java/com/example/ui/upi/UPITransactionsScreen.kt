@@ -27,6 +27,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -111,14 +112,12 @@ fun UPITransactionsScreen(onAddTransaction: (String, String) -> Unit = { _, _ ->
         }
     }
 
-    registerSender?.let { sender ->
-        RegisterUpiDialog(sender, database, { registerSender = null })
-    }
+    registerSender?.let { sender -> RegisterUpiDialog(sender, database) { registerSender = null } }
 }
 
 @Composable
 private fun RegisterUpiDialog(initialName: String, database: AppDatabase, onDismiss: () -> Unit) {
-    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    val scope = rememberCoroutineScope()
     var upiName by remember(initialName) { mutableStateOf(initialName) }
     var categories by remember { mutableStateOf<List<CategoryEntity>>(emptyList()) }
     var wallets by remember { mutableStateOf<List<WalletOption>>(emptyList()) }
@@ -129,7 +128,7 @@ private fun RegisterUpiDialog(initialName: String, database: AppDatabase, onDism
     var error by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
-        categories = withContext(Dispatchers.IO) { database.categoryDao().getCategoriesByTypeDirect("EXPENSE") }
+        categories = withContext(Dispatchers.IO) { database.categoryDao().getAllCategoriesDirect().filter { it.type == "EXPENSE" } }
         selectedCategory = categories.firstOrNull()
         val uid = FirebaseAuth.getInstance().currentUser?.uid
         if (uid != null) {
