@@ -33,6 +33,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
@@ -66,20 +67,11 @@ sealed class Screen(
     object Settings : Screen("settings", "Settings", Icons.Filled.Settings, Icons.Outlined.Settings)
 }
 
-val bottomNavScreens = listOf(
-    Screen.Dashboard,
-    Screen.Transactions,
-    Screen.Calendar,
-    Screen.Reports,
-    Screen.Settings
-)
+val bottomNavScreens = listOf(Screen.Dashboard, Screen.Transactions, Screen.Calendar, Screen.Reports, Screen.Settings)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ExpenseApp(
-    viewModel: ExpenseViewModel,
-    navController: NavHostController = rememberNavController()
-) {
+fun ExpenseApp(viewModel: ExpenseViewModel, navController: NavHostController = rememberNavController()) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
     val currentScreen = bottomNavScreens.firstOrNull { it.route == currentRoute } ?: Screen.Dashboard
@@ -91,31 +83,12 @@ fun ExpenseApp(
         topBar = {
             if (isBottomBarVisible) {
                 TopAppBar(
-                    title = {
-                        Text(
-                            text = currentScreen.title,
-                            fontWeight = FontWeight.Bold
-                        )
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = Color.Transparent,
-                        scrolledContainerColor = Color.Transparent
-                    ),
+                    title = { Text(text = currentScreen.title, fontWeight = FontWeight.Bold) },
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent, scrolledContainerColor = Color.Transparent),
                     actions = {
-                        IconButton(onClick = { menuExpanded = true }) {
-                            Icon(Icons.Filled.MoreVert, contentDescription = "More options")
-                        }
-                        DropdownMenu(
-                            expanded = menuExpanded,
-                            onDismissRequest = { menuExpanded = false }
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text("Logout") },
-                                onClick = {
-                                    menuExpanded = false
-                                    FirebaseAuth.getInstance().signOut()
-                                }
-                            )
+                        IconButton(onClick = { menuExpanded = true }) { Icon(Icons.Filled.MoreVert, contentDescription = "More options") }
+                        DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                            DropdownMenuItem(text = { Text("Logout") }, onClick = { menuExpanded = false; FirebaseAuth.getInstance().signOut() })
                         }
                     }
                 )
@@ -127,18 +100,8 @@ fun ExpenseApp(
                     bottomNavScreens.forEach { screen ->
                         val isSelected = currentRoute == screen.route
                         NavigationBarItem(
-                            icon = {
-                                Icon(
-                                    imageVector = if (isSelected) screen.selectedIcon else screen.unselectedIcon,
-                                    contentDescription = screen.title
-                                )
-                            },
-                            label = {
-                                Text(
-                                    text = screen.title,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-                                )
-                            },
+                            icon = { Icon(imageVector = if (isSelected) screen.selectedIcon else screen.unselectedIcon, contentDescription = screen.title) },
+                            label = { Text(text = screen.title, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal) },
                             selected = isSelected,
                             onClick = {
                                 if (currentRoute != screen.route) {
@@ -156,11 +119,7 @@ fun ExpenseApp(
             }
         }
     ) { innerPadding ->
-        NavHost(
-            navController = navController,
-            startDestination = Screen.Dashboard.route,
-            modifier = Modifier.padding(innerPadding)
-        ) {
+        NavHost(navController = navController, startDestination = Screen.Dashboard.route, modifier = Modifier.padding(innerPadding)) {
             composable(Screen.Dashboard.route) {
                 DashboardScreen(
                     viewModel = viewModel,
@@ -178,32 +137,12 @@ fun ExpenseApp(
                 )
             }
             composable(Screen.Calendar.route) { CalendarScreen(viewModel = viewModel) }
-            composable(Screen.Reports.route) {
-                ReportsScreen(viewModel = viewModel, onNavigateToAddTransaction = { navController.navigate("add_transaction") })
-            }
-            composable(Screen.Settings.route) {
-                SettingsScreen(
-                    viewModel = viewModel,
-                    onNavigateToCategories = { navController.navigate("categories") },
-                    onNavigateToBudget = { navController.navigate("budget") }
-                )
-            }
-            composable("add_transaction") {
-                AddEditTransactionScreen(
-                    viewModel = viewModel,
-                    transactionId = 0L,
-                    onNavigateBack = { navController.popBackStack() },
-                    onNavigateToCategories = { navController.navigate("categories") }
-                )
-            }
-            composable("edit_transaction/{transactionId}", arguments = listOf(navArgument("transactionId") { type = NavType.LongType })) { backStackEntry ->
-                val txId = backStackEntry.arguments?.getLong("transactionId") ?: 0L
-                AddEditTransactionScreen(
-                    viewModel = viewModel,
-                    transactionId = txId,
-                    onNavigateBack = { navController.popBackStack() },
-                    onNavigateToCategories = { navController.navigate("categories") }
-                )
+            composable(Screen.Reports.route) { ReportsScreen(viewModel = viewModel, onNavigateToAddTransaction = { navController.navigate("add_transaction") }) }
+            composable(Screen.Settings.route) { SettingsScreen(viewModel = viewModel, onNavigateToCategories = { navController.navigate("categories") }, onNavigateToBudget = { navController.navigate("budget") }) }
+            composable("add_transaction") { AddEditTransactionScreen(viewModel = viewModel, transactionId = 0L, onNavigateBack = { navController.popBackStack() }, onNavigateToCategories = { navController.navigate("categories") }) }
+            composable("edit_transaction/{transactionId}", arguments = listOf(navArgument("transactionId") { type = NavType.LongType })) { entry ->
+                val txId = entry.arguments?.getLong("transactionId") ?: 0L
+                AddEditTransactionScreen(viewModel = viewModel, transactionId = txId, onNavigateBack = { navController.popBackStack() }, onNavigateToCategories = { navController.navigate("categories") })
             }
             composable("categories") { CategoriesScreen(viewModel = viewModel, onNavigateBack = { navController.popBackStack() }) }
             composable("budget") { BudgetScreen(viewModel = viewModel, onNavigateBack = { navController.popBackStack() }) }
