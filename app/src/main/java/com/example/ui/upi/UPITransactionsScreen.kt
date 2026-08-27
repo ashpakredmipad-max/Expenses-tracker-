@@ -5,21 +5,30 @@ import android.content.pm.PackageManager
 import android.provider.Telephony
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -29,18 +38,20 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.example.data.local.database.AppDatabase
 import com.example.data.local.database.entity.CategoryEntity
+import com.example.utils.CategoryIconHelper
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.Dispatchers
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -51,7 +62,7 @@ private data class WalletOption(val id: String, val name: String)
 
 @Composable
 fun UPITransactionsScreen(onAddTransaction: (String, String) -> Unit = { _, _ -> }) {
-    val context = LocalContext.current
+    val context = androidx.compose.ui.platform.LocalContext.current
     val database = remember { AppDatabase.getInstance(context) }
     var transactions by remember { mutableStateOf<List<UpiSmsTransaction>>(emptyList()) }
     var permissionDenied by remember { mutableStateOf(false) }
@@ -111,7 +122,6 @@ fun UPITransactionsScreen(onAddTransaction: (String, String) -> Unit = { _, _ ->
             }
         }
     }
-
     registerSender?.let { sender -> RegisterUpiDialog(sender, database) { registerSender = null } }
 }
 
@@ -123,8 +133,6 @@ private fun RegisterUpiDialog(initialName: String, database: AppDatabase, onDism
     var wallets by remember { mutableStateOf<List<WalletOption>>(emptyList()) }
     var selectedCategory by remember { mutableStateOf<CategoryEntity?>(null) }
     var selectedWallet by remember { mutableStateOf<WalletOption?>(null) }
-    var categoryMenu by remember { mutableStateOf(false) }
-    var walletMenu by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var saving by remember { mutableStateOf(false) }
 
@@ -133,11 +141,10 @@ private fun RegisterUpiDialog(initialName: String, database: AppDatabase, onDism
         selectedCategory = categories.firstOrNull()
         val uid = FirebaseAuth.getInstance().currentUser?.uid
         if (uid != null) {
-            FirebaseFirestore.getInstance().collection("users").document(uid).collection("wallets").get()
-                .addOnSuccessListener { snapshot ->
-                    wallets = snapshot.documents.map { WalletOption(it.id, it.getString("name") ?: "") }.filter { it.name.isNotBlank() }
-                    selectedWallet = wallets.firstOrNull()
-                }
+            FirebaseFirestore.getInstance().collection("users").document(uid).collection("wallets").addSnapshotListener { snapshot, _ ->
+                wallets = snapshot?.documents?.map { WalletOption(it.id, it.getString("name") ?: "") }?.filter { it.name.isNotBlank() } ?: emptyList()
+                if (selectedWallet == null || wallets.none { it.id == selectedWallet?.id }) selectedWallet = wallets.firstOrNull()
+            }
         }
     }
 
@@ -145,29 +152,58 @@ private fun RegisterUpiDialog(initialName: String, database: AppDatabase, onDism
         onDismissRequest = { if (!saving) onDismiss() },
         title = { Text("Register UPI") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 OutlinedTextField(value = upiName, onValueChange = { upiName = it }, singleLine = true, label = { Text("UPI Name") }, modifier = Modifier.fillMaxWidth(), enabled = !saving)
                 Column {
-                    Button(onClick = { categoryMenu = true }, modifier = Modifier.fillMaxWidth(), enabled = !saving) { Text(selectedCategory?.name ?: "Select Category") }
-                    DropdownMenu(expanded = categoryMenu, onDismissRequest = { categoryMenu = false }) {
-                        categories.forEach { category -> DropdownMenuItem(text = { Text(category.name) }, onClick = { selectedCategory = category; categoryMenu = false }) }
+                    Text("Select Category", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.size(10.dp))
+                    FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        categories.forEach { category ->
+                            val isSelected = selectedCategory?.id == category.id
+                            val catColor = CategoryIconHelper.parseColor(category.colorHex)
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = if (isSelected) catColor.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surface,
+                                tonalElevation = if (isSelected) 3.dp else 1.dp,
+                                modifier = Modifier.border(if (isSelected) 2.dp else 1.dp, if (isSelected) catColor else MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp)).clickable(enabled = !saving) { selectedCategory = category }
+                            ) {
+                                Row(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(CategoryIconHelper.getIcon(category.iconName), contentDescription = category.name, tint = catColor, modifier = Modifier.size(20.dp))
+                                    Spacer(Modifier.width(8.dp))
+                                    Text(category.name, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal, color = if (isSelected) catColor else MaterialTheme.colorScheme.onSurface)
+                                }
+                            }
+                        }
                     }
                 }
                 Column {
-                    Button(onClick = { walletMenu = true }, modifier = Modifier.fillMaxWidth(), enabled = !saving) { Text(selectedWallet?.name ?: "Select Wallet") }
-                    DropdownMenu(expanded = walletMenu, onDismissRequest = { walletMenu = false }) {
-                        wallets.forEach { wallet -> DropdownMenuItem(text = { Text(wallet.name) }, onClick = { selectedWallet = wallet; walletMenu = false }) }
+                    Text("Select Wallet", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.size(10.dp))
+                    FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        wallets.forEach { wallet ->
+                            val isSelected = selectedWallet?.id == wallet.id
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surface,
+                                tonalElevation = if (isSelected) 3.dp else 1.dp,
+                                modifier = Modifier.border(if (isSelected) 2.dp else 1.dp, if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp)).clickable(enabled = !saving) { selectedWallet = wallet }
+                            ) {
+                                Row(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(Icons.Default.AccountBalanceWallet, contentDescription = wallet.name, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                                    Spacer(Modifier.width(8.dp))
+                                    Text(wallet.name, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal)
+                                }
+                            }
+                        }
                     }
+                    if (wallets.isEmpty()) Text("No wallets yet. Add a wallet first.", color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 8.dp))
                 }
-                if (wallets.isEmpty()) Text("No wallets found.", color = MaterialTheme.colorScheme.error)
                 error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             }
         },
         confirmButton = {
             TextButton(enabled = !saving, onClick = {
-                val name = upiName.trim()
-                val category = selectedCategory
-                val wallet = selectedWallet
+                val name = upiName.trim(); val category = selectedCategory; val wallet = selectedWallet
                 when {
                     name.isEmpty() -> error = "UPI name is required"
                     category == null -> error = "Select a category"
@@ -179,25 +215,11 @@ private fun RegisterUpiDialog(initialName: String, database: AppDatabase, onDism
                                 val uid = FirebaseAuth.getInstance().currentUser?.uid ?: throw IllegalStateException("User is not logged in")
                                 val collection = FirebaseFirestore.getInstance().collection("users").document(uid).collection("registered_upi")
                                 val existing = collection.whereEqualTo("upiName", name).limit(1).get().await()
-                                val data = hashMapOf<String, Any>(
-                                    "upiName" to name,
-                                    "categoryId" to category.id,
-                                    "categoryName" to category.name,
-                                    "walletId" to wallet.id,
-                                    "walletName" to wallet.name,
-                                    "updatedAt" to com.google.firebase.Timestamp.now()
-                                )
-                                if (existing.documents.isNotEmpty()) {
-                                    existing.documents.first().reference.set(data, com.google.firebase.firestore.SetOptions.merge()).await()
-                                } else {
-                                    data["createdAt"] = com.google.firebase.Timestamp.now()
-                                    collection.add(data).await()
-                                }
+                                val data = hashMapOf<String, Any>("upiName" to name, "categoryId" to category.id, "categoryName" to category.name, "categoryIcon" to category.iconName, "categoryColorHex" to category.colorHex, "walletId" to wallet.id, "walletName" to wallet.name, "updatedAt" to com.google.firebase.Timestamp.now())
+                                if (existing.documents.isNotEmpty()) existing.documents.first().reference.set(data, com.google.firebase.firestore.SetOptions.merge()).await()
+                                else { data["createdAt"] = com.google.firebase.Timestamp.now(); collection.add(data).await() }
                                 onDismiss()
-                            } catch (e: Exception) {
-                                error = e.message ?: "Unable to save UPI"
-                                saving = false
-                            }
+                            } catch (e: Exception) { error = e.message ?: "Unable to save UPI"; saving = false }
                         }
                     }
                 }
