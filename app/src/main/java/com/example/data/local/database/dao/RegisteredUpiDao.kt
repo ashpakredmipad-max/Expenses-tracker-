@@ -17,4 +17,7 @@ interface RegisteredUpiDao {
 
     @Query("SELECT * FROM registered_upi WHERE upiName = :upiName LIMIT 1")
     suspend fun findByName(upiName: String): RegisteredUpiEntity?
+
+    @Query("DELETE FROM registered_upi WHERE upiName = :upiName")
+    suspend fun deleteByName(upiName: String)
 }
