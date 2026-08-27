@@ -4,51 +4,43 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.example.data.local.database.dao.AppSettingDao
 import com.example.data.local.database.dao.BudgetDao
 import com.example.data.local.database.dao.CategoryDao
+import com.example.data.local.database.dao.RegisteredUpiDao
 import com.example.data.local.database.dao.TransactionDao
 import com.example.data.local.database.entity.AppSettingEntity
 import com.example.data.local.database.entity.BudgetEntity
 import com.example.data.local.database.entity.CategoryEntity
+import com.example.data.local.database.entity.RegisteredUpiEntity
 import com.example.data.local.database.entity.TransactionEntity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
-@Database(
-    entities = [
-        CategoryEntity::class,
-        TransactionEntity::class,
-        BudgetEntity::class,
-        AppSettingEntity::class
-    ],
-    version = 1,
-    exportSchema = false
-)
+@Database(entities = [CategoryEntity::class, TransactionEntity::class, BudgetEntity::class, AppSettingEntity::class, RegisteredUpiEntity::class], version = 2, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun categoryDao(): CategoryDao
     abstract fun transactionDao(): TransactionDao
     abstract fun budgetDao(): BudgetDao
     abstract fun appSettingDao(): AppSettingDao
+    abstract fun registeredUpiDao(): RegisteredUpiDao
 
     companion object {
-        @Volatile
-        private var INSTANCE: AppDatabase? = null
-
-        fun getInstance(context: Context): AppDatabase {
-            return INSTANCE ?: synchronized(this) {
-                val instance = Room.databaseBuilder(
-                    context.applicationContext,
-                    AppDatabase::class.java,
-                    "expense_tracker.db"
-                )
-                    .addCallback(DatabaseCallback())
-                    .build()
-                INSTANCE = instance
-                instance
+        @Volatile private var INSTANCE: AppDatabase? = null
+        private val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("CREATE TABLE IF NOT EXISTS registered_upi (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, upiName TEXT NOT NULL, categoryId INTEGER NOT NULL, categoryName TEXT NOT NULL, walletName TEXT NOT NULL, createdAt INTEGER NOT NULL)")
             }
+        }
+
+        fun getInstance(context: Context): AppDatabase = INSTANCE ?: synchronized(this) {
+            Room.databaseBuilder(context.applicationContext, AppDatabase::class.java, "expense_tracker.db")
+                .addMigrations(MIGRATION_1_2)
+                .addCallback(DatabaseCallback())
+                .build().also { INSTANCE = it }
         }
 
         val DEFAULT_EXPENSE_CATEGORIES = listOf(
@@ -68,7 +60,6 @@ abstract class AppDatabase : RoomDatabase() {
             CategoryEntity(name = "Travel", type = "EXPENSE", iconName = "Flight", colorHex = "#26C6DA", isDefault = true),
             CategoryEntity(name = "Other", type = "EXPENSE", iconName = "Category", colorHex = "#78909C", isDefault = true)
         )
-
         val DEFAULT_INCOME_CATEGORIES = listOf(
             CategoryEntity(name = "Salary", type = "INCOME", iconName = "Payments", colorHex = "#4CAF50", isDefault = true),
             CategoryEntity(name = "Business", type = "INCOME", iconName = "Storefront", colorHex = "#2E7D32", isDefault = true),
@@ -81,13 +72,10 @@ abstract class AppDatabase : RoomDatabase() {
 
     private class DatabaseCallback : Callback() {
         override fun onCreate(db: SupportSQLiteDatabase) {
-            super.onCreate(db)
-            INSTANCE?.let { database ->
-                CoroutineScope(Dispatchers.IO).launch {
-                    database.categoryDao().insertAll(DEFAULT_EXPENSE_CATEGORIES)
-                    database.categoryDao().insertAll(DEFAULT_INCOME_CATEGORIES)
-                }
-            }
+            INSTANCE?.let { database -> CoroutineScope(Dispatchers.IO).launch {
+                database.categoryDao().insertAll(DEFAULT_EXPENSE_CATEGORIES)
+                database.categoryDao().insertAll(DEFAULT_INCOME_CATEGORIES)
+            } }
         }
     }
 }
