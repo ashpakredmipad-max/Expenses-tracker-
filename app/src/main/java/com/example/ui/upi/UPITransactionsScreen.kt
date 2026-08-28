@@ -118,17 +118,15 @@ fun UPITransactionsScreen(onAddTransaction: (String, String) -> Unit = { _, _ ->
                     val iconColor = CategoryIconHelper.parseColor(item.categoryColor)
                     Card(Modifier.fillMaxWidth()) {
                         Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Icon(CategoryIconHelper.getIcon(item.categoryIcon), item.categoryName, tint = iconColor, Modifier.size(30.dp))
+                            Icon(CategoryIconHelper.getIcon(item.categoryIcon), item.categoryName, Modifier.size(30.dp), iconColor)
                             Spacer(Modifier.width(12.dp))
                             Column(Modifier.weight(1f)) {
                                 Text(item.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                                 Text("${item.categoryName} • ${item.walletName}", style = MaterialTheme.typography.bodyMedium)
                             }
-                            IconButton(onClick = {
-                                if (uid != null) scope.launch {
-                                    FirebaseFirestore.getInstance().collection("users").document(uid).collection("registered_upi").document(item.id).delete().await()
-                                }
-                            }) { Icon(Icons.Default.Delete, contentDescription = "Delete") }
+                            IconButton(onClick = { if (uid != null) scope.launch { FirebaseFirestore.getInstance().collection("users").document(uid).collection("registered_upi").document(item.id).delete().await() } }) {
+                                Icon(Icons.Default.Delete, contentDescription = "Delete")
+                            }
                         }
                     }
                 }
@@ -161,12 +159,12 @@ private fun RegisterUpiDialog(initialName: String, database: AppDatabase, onDism
             Text("Select Category", fontWeight = FontWeight.Bold)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) { categories.forEach { category ->
                 val selected = selectedCategory?.id == category.id; val color = CategoryIconHelper.parseColor(category.colorHex)
-                Surface(shape = RoundedCornerShape(12.dp), color = if (selected) color.copy(alpha = .2f) else MaterialTheme.colorScheme.surface, modifier = Modifier.border(if (selected) 2.dp else 1.dp, if (selected) color else MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp)).clickable { selectedCategory = category }) { Row(Modifier.padding(12.dp, 8.dp), verticalAlignment = Alignment.CenterVertically) { Icon(CategoryIconHelper.getIcon(category.iconName), category.name, tint = color, Modifier.size(20.dp)); Spacer(Modifier.width(8.dp)); Text(category.name) } }
+                Surface(shape = RoundedCornerShape(12.dp), color = if (selected) color.copy(alpha = .2f) else MaterialTheme.colorScheme.surface, modifier = Modifier.border(if (selected) 2.dp else 1.dp, if (selected) color else MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp)).clickable { selectedCategory = category }) { Row(Modifier.padding(12.dp, 8.dp), verticalAlignment = Alignment.CenterVertically) { Icon(CategoryIconHelper.getIcon(category.iconName), category.name, Modifier.size(20.dp), color); Spacer(Modifier.width(8.dp)); Text(category.name) } }
             } }
             Text("Select Wallet", fontWeight = FontWeight.Bold)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) { wallets.forEach { wallet ->
                 val selected = selectedWallet?.id == wallet.id
-                Surface(shape = RoundedCornerShape(12.dp), color = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = .15f) else MaterialTheme.colorScheme.surface, modifier = Modifier.border(if (selected) 2.dp else 1.dp, if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp)).clickable { selectedWallet = wallet }) { Row(Modifier.padding(12.dp, 8.dp), verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Default.AccountBalanceWallet, wallet.name, tint = MaterialTheme.colorScheme.primary, Modifier.size(20.dp)); Spacer(Modifier.width(8.dp)); Text(wallet.name) } }
+                Surface(shape = RoundedCornerShape(12.dp), color = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = .15f) else MaterialTheme.colorScheme.surface, modifier = Modifier.border(if (selected) 2.dp else 1.dp, if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp)).clickable { selectedWallet = wallet }) { Row(Modifier.padding(12.dp, 8.dp), verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Default.AccountBalanceWallet, wallet.name, Modifier.size(20.dp), MaterialTheme.colorScheme.primary); Spacer(Modifier.width(8.dp)); Text(wallet.name) } }
             } }
             error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
         }
