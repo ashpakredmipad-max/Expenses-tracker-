@@ -10,7 +10,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalanceWallet
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Sms
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -53,24 +52,6 @@ fun UPITransactionsScreen() {
     }
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text("UPI Transactions", style = MaterialTheme.typography.headlineSmall)
-                Text("UPI transaction SMS", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            Button(onClick = { showRegisterDialog = true }) {
-                Icon(Icons.Default.Add, contentDescription = null)
-                Spacer(Modifier.width(4.dp))
-                Text("Register UPI")
-            }
-        }
-
-        Spacer(Modifier.height(12.dp))
-
         if (!hasPermission) {
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(20.dp)) {
@@ -115,7 +96,7 @@ fun UPITransactionsScreen() {
                                         try {
                                             val uid = FirebaseAuth.getInstance().currentUser?.uid ?: return@launch
                                             FirebaseFirestore.getInstance().collection("users").document(uid)
-                                                .collection("upi_sms") .document(sms.id)
+                                                .collection("upi_sms").document(sms.id)
                                                 .set(mapOf(
                                                     "sender" to sms.sender,
                                                     "body" to sms.body,
