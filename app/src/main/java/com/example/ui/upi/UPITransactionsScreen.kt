@@ -43,10 +43,18 @@ private data class UpiSms(
     val recipient: String
 )
 
+private data class UpiTag(
+    val tagName: String,
+    val iconName: String,
+    val colorHex: String,
+    val recipient: String
+)
+
 @Composable
 fun UPITransactionsScreen() {
     val context = LocalContext.current
     var smsList by remember { mutableStateOf<List<UpiSms>>(emptyList()) }
+    var upiTags by remember { mutableStateOf<List<UpiTag>>(emptyList()) }
     var hasPermission by remember { mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.READ_SMS) == PackageManager.PERMISSION_GRANTED) }
     var selectedSms by remember { mutableStateOf<UpiSms?>(null) }
     var showTagDialog by remember { mutableStateOf(false) }
@@ -57,7 +65,32 @@ fun UPITransactionsScreen() {
         if (granted) smsList = readUpiSms(context)
     }
 
-    LaunchedEffect(hasPermission) { if (hasPermission) smsList = readUpiSms(context) }
+    LaunchedEffect(hasPermission) {
+        if (hasPermission) smsList = readUpiSms(context)
+    }
+
+    LaunchedEffect(showTagDialog) {
+        if (!showTagDialog) {
+            val uid = FirebaseAuth.getInstance().currentUser?.uid
+            if (uid != null) {
+                try {
+                    val snapshot = FirebaseFirestore.getInstance()
+                        .collection("users").document(uid).collection("upi_tags").get().await()
+                    upiTags = snapshot.documents.mapNotNull { doc ->
+                        val recipient = doc.getString("recipient")?.trim()
+                        val tagName = doc.getString("tagName")?.trim()
+                        if (recipient.isNullOrBlank() || tagName.isNullOrBlank()) null
+                        else UpiTag(
+                            tagName = tagName,
+                            iconName = doc.getString("iconName") ?: "Category",
+                            colorHex = doc.getString("colorHex") ?: "#00897B",
+                            recipient = recipient
+                        )
+                    }
+                } catch (_: Exception) { }
+            }
+        }
+    }
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         if (!hasPermission) {
@@ -76,6 +109,7 @@ fun UPITransactionsScreen() {
         } else {
             LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 items(smsList, key = { it.id }) { sms ->
+                    val matchingTag = upiTags.firstOrNull { tagsMatch(it.recipient, sms.recipient) }
                     Card(modifier = Modifier.fillMaxWidth()) {
                         Column(modifier = Modifier.padding(14.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -85,6 +119,32 @@ fun UPITransactionsScreen() {
                                 Spacer(Modifier.weight(1f))
                                 sms.amount?.let { Text(it, style = MaterialTheme.typography.titleMedium) }
                             }
+
+                            matchingTag?.let { tag ->
+                                Spacer(Modifier.height(8.dp))
+                                Row(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(18.dp))
+                                        .background(CategoryIconHelper.parseColor(tag.colorHex).copy(alpha = 0.16f))
+                                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        CategoryIconHelper.getIcon(tag.iconName),
+                                        contentDescription = tag.tagName,
+                                        tint = CategoryIconHelper.parseColor(tag.colorHex),
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(Modifier.width(6.dp))
+                                    Text(
+                                        tag.tagName,
+                                        color = CategoryIconHelper.parseColor(tag.colorHex),
+                                        fontWeight = FontWeight.SemiBold,
+                                        style = MaterialTheme.typography.labelLarge
+                                    )
+                                }
+                            }
+
                             Spacer(Modifier.height(6.dp))
                             Text(sms.body, style = MaterialTheme.typography.bodyMedium, maxLines = 4)
                             Spacer(Modifier.height(10.dp))
@@ -107,6 +167,14 @@ fun UPITransactionsScreen() {
             onSaved = { savedMessage -> message = savedMessage; showTagDialog = false; selectedSms = null }
         )
     }
+}
+
+private fun tagsMatch(savedRecipient: String, smsRecipient: String): Boolean {
+    fun normalize(value: String): String = value
+        .trim()
+        .replace(Regex("\\s+"), " ")
+        .lowercase()
+    return normalize(savedRecipient) == normalize(smsRecipient)
 }
 
 private fun readUpiSms(context: Context): List<UpiSms> {
@@ -155,47 +223,22 @@ private fun TagUpiDialog(sms: UpiSms, onDismiss: () -> Unit, onSaved: (String) -
         title = { Text(sms.recipient, fontWeight = FontWeight.Bold) },
         text = {
             Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                OutlinedTextField(
-                    value = tagName,
-                    onValueChange = { tagName = it; error = null },
-                    label = { Text("Tag Name") },
-                    singleLine = true,
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth()
-                )
+                OutlinedTextField(value = tagName, onValueChange = { tagName = it; error = null }, label = { Text("Tag Name") }, singleLine = true, shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth())
                 error?.let { Text(it, color = ExpenseRed, style = MaterialTheme.typography.bodySmall) }
                 Text("Choose Icon", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
-                FlowRow(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
+                FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     CategoryIconHelper.AVAILABLE_ICONS.take(16).forEach { (iconKey, vector) ->
                         val selected = selectedIcon == iconKey
-                        Box(
-                            modifier = Modifier.size(38.dp).clip(RoundedCornerShape(8.dp))
-                                .background(if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant)
-                                .clickable { selectedIcon = iconKey },
-                            contentAlignment = Alignment.Center
-                        ) {
+                        Box(modifier = Modifier.size(38.dp).clip(RoundedCornerShape(8.dp)).background(if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant).clickable { selectedIcon = iconKey }, contentAlignment = Alignment.Center) {
                             Icon(vector, contentDescription = iconKey, tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(22.dp))
                         }
                     }
                 }
                 Text("Choose Color", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
-                FlowRow(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
+                FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     CategoryIconHelper.PRESET_COLORS.take(12).forEach { colorHex ->
                         val selected = selectedColor.equals(colorHex, ignoreCase = true)
-                        Box(
-                            modifier = Modifier.size(34.dp).clip(CircleShape)
-                                .background(CategoryIconHelper.parseColor(colorHex))
-                                .clickable { selectedColor = colorHex },
-                            contentAlignment = Alignment.Center
-                        ) {
+                        Box(modifier = Modifier.size(34.dp).clip(CircleShape).background(CategoryIconHelper.parseColor(colorHex)).clickable { selectedColor = colorHex }, contentAlignment = Alignment.Center) {
                             if (selected) Icon(Icons.Default.Check, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
                         }
                     }
@@ -203,35 +246,22 @@ private fun TagUpiDialog(sms: UpiSms, onDismiss: () -> Unit, onSaved: (String) -
             }
         },
         confirmButton = {
-            Button(
-                enabled = !saving,
-                onClick = {
-                    if (tagName.isBlank()) { error = "Tag name cannot be empty"; return@Button }
-                    val uid = FirebaseAuth.getInstance().currentUser?.uid
-                    if (uid == null) { error = "User is not logged in"; return@Button }
-                    saving = true
-                    scope.launch {
-                        try {
-                            FirebaseFirestore.getInstance().collection("users").document(uid).collection("upi_tags").document(sms.id)
-                                .set(mapOf(
-                                    "tagName" to tagName.trim(),
-                                    "iconName" to selectedIcon,
-                                    "colorHex" to selectedColor,
-                                    "recipient" to sms.recipient,
-                                    "sender" to sms.sender,
-                                    "amount" to sms.amount,
-                                    "body" to sms.body,
-                                    "date" to sms.date,
-                                    "updatedAt" to com.google.firebase.Timestamp.now()
-                                )).await()
-                            onSaved("UPI tag saved")
-                        } catch (e: Exception) {
-                            error = e.message ?: "Unable to save UPI tag"
-                            saving = false
-                        }
+            Button(enabled = !saving, onClick = {
+                if (tagName.isBlank()) { error = "Tag name cannot be empty"; return@Button }
+                val uid = FirebaseAuth.getInstance().currentUser?.uid
+                if (uid == null) { error = "User is not logged in"; return@Button }
+                saving = true
+                scope.launch {
+                    try {
+                        FirebaseFirestore.getInstance().collection("users").document(uid).collection("upi_tags").document(sms.id)
+                            .set(mapOf("tagName" to tagName.trim(), "iconName" to selectedIcon, "colorHex" to selectedColor, "recipient" to sms.recipient, "sender" to sms.sender, "amount" to sms.amount, "body" to sms.body, "date" to sms.date, "updatedAt" to com.google.firebase.Timestamp.now())).await()
+                        onSaved("UPI tag saved")
+                    } catch (e: Exception) {
+                        error = e.message ?: "Unable to save UPI tag"
+                        saving = false
                     }
                 }
-            ) { Text(if (saving) "Saving..." else "Save") }
+            }) { Text(if (saving) "Saving..." else "Save") }
         },
         dismissButton = { TextButton(enabled = !saving, onClick = onDismiss) { Text("Cancel") } }
     )
