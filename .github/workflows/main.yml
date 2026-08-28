@@ -17,7 +17,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
@@ -33,6 +33,27 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '9.3.1'
+
+      - name: Fix UPI transaction save call
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("app/src/main/java/com/example/ui/upi/UPITransactionsScreen.kt")
+          text = path.read_text()
+          old = '''viewModel.saveTransaction("EXPENSE", paise, category, sms.date, "[UPI_SMS_ID:${sms.id}] ${sms.recipient} • ${tag.tagName}") {'''
+          new = '''viewModel.saveTransaction(
+              id = 0L,
+              type = "EXPENSE",
+              amountInPaise = paise,
+              category = category,
+              date = sms.date,
+              note = "[UPI_SMS_ID:${sms.id}] ${sms.recipient} • ${tag.tagName}"
+          ) {'''
+          if old not in text:
+              raise SystemExit("Expected UPI saveTransaction call was not found; refusing to modify the source.")
+          path.write_text(text.replace(old, new, 1))
+          PY
 
       - name: Prepare signing keystore
         env:
