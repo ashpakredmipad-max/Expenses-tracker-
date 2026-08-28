@@ -7,6 +7,7 @@ import android.provider.Telephony
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -16,14 +17,18 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import com.example.ui.theme.ExpenseRed
+import com.example.utils.CategoryIconHelper
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.launch
@@ -38,19 +43,9 @@ private data class UpiSms(
     val recipient: String
 )
 
-private val tagIcons = listOf(
-    Icons.Default.LocalOffer, Icons.Default.Fastfood, Icons.Default.ShoppingCart,
-    Icons.Default.LocalGasStation, Icons.Default.Home, Icons.Default.MedicalServices,
-    Icons.Default.Movie, Icons.Default.School, Icons.Default.Flight,
-    Icons.Default.Wifi, Icons.Default.Power, Icons.Default.AccountBalanceWallet,
-    Icons.Default.Restaurant, Icons.Default.DirectionsCar, Icons.Default.PhoneAndroid,
-    Icons.Default.CardGiftcard
-)
-
 @Composable
 fun UPITransactionsScreen() {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
     var smsList by remember { mutableStateOf<List<UpiSms>>(emptyList()) }
     var hasPermission by remember { mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.READ_SMS) == PackageManager.PERMISSION_GRANTED) }
     var selectedSms by remember { mutableStateOf<UpiSms?>(null) }
@@ -62,9 +57,7 @@ fun UPITransactionsScreen() {
         if (granted) smsList = readUpiSms(context)
     }
 
-    LaunchedEffect(hasPermission) {
-        if (hasPermission) smsList = readUpiSms(context)
-    }
+    LaunchedEffect(hasPermission) { if (hasPermission) smsList = readUpiSms(context) }
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         if (!hasPermission) {
@@ -75,15 +68,11 @@ fun UPITransactionsScreen() {
                     Text("SMS permission required", style = MaterialTheme.typography.titleMedium)
                     Text("Allow SMS access to show your UPI transaction messages.")
                     Spacer(Modifier.height(12.dp))
-                    Button(onClick = { permissionLauncher.launch(Manifest.permission.READ_SMS) }) {
-                        Text("Allow SMS Access")
-                    }
+                    Button(onClick = { permissionLauncher.launch(Manifest.permission.READ_SMS) }) { Text("Allow SMS Access") }
                 }
             }
         } else if (smsList.isEmpty()) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("No UPI transaction SMS found.")
-            }
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("No UPI transaction SMS found.") }
         } else {
             LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 items(smsList, key = { it.id }) { sms ->
@@ -100,15 +89,8 @@ fun UPITransactionsScreen() {
                             Text(sms.body, style = MaterialTheme.typography.bodyMedium, maxLines = 4)
                             Spacer(Modifier.height(10.dp))
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                OutlinedButton(onClick = { message = "Add Transaction feature is ready for the next step" }) {
-                                    Text("Add Transaction")
-                                }
-                                Button(onClick = {
-                                    selectedSms = sms
-                                    showTagDialog = true
-                                }) {
-                                    Text("Tag UPI")
-                                }
+                                OutlinedButton(onClick = { message = "Add Transaction feature is ready for the next step" }) { Text("Add Transaction") }
+                                Button(onClick = { selectedSms = sms; showTagDialog = true }) { Text("Tag UPI") }
                             }
                         }
                     }
@@ -121,15 +103,8 @@ fun UPITransactionsScreen() {
     if (showTagDialog && selectedSms != null) {
         TagUpiDialog(
             sms = selectedSms!!,
-            onDismiss = {
-                showTagDialog = false
-                selectedSms = null
-            },
-            onSaved = { savedMessage ->
-                message = savedMessage
-                showTagDialog = false
-                selectedSms = null
-            }
+            onDismiss = { showTagDialog = false; selectedSms = null },
+            onSaved = { savedMessage -> message = savedMessage; showTagDialog = false; selectedSms = null }
         )
     }
 }
@@ -146,16 +121,8 @@ private fun readUpiSms(context: Context): List<UpiSms> {
         val dateIndex = cursor.getColumnIndexOrThrow(Telephony.Sms.DATE)
         while (cursor.moveToNext()) {
             val body = cursor.getString(bodyIndex) ?: continue
-            val amount = Regex("(?:Rs\\.?|INR|₹)\\s*([0-9,]+(?:\\.[0-9]{1,2})?)", RegexOption.IGNORE_CASE)
-                .find(body)?.groupValues?.getOrNull(1)?.let { "₹$it" }
-            result += UpiSms(
-                id = cursor.getString(idIndex),
-                sender = cursor.getString(addressIndex) ?: "Unknown",
-                body = body,
-                date = cursor.getLong(dateIndex),
-                amount = amount,
-                recipient = extractRecipient(body)
-            )
+            val amount = Regex("(?:Rs\\.?|INR|₹)\\s*([0-9,]+(?:\\.[0-9]{1,2})?)", RegexOption.IGNORE_CASE).find(body)?.groupValues?.getOrNull(1)?.let { "₹$it" }
+            result += UpiSms(cursor.getString(idIndex), cursor.getString(addressIndex) ?: "Unknown", body, cursor.getLong(dateIndex), amount, extractRecipient(body))
         }
     }
     return result
@@ -167,87 +134,89 @@ private fun extractRecipient(body: String): String {
         Regex("(?i)\\bto\\s*[:\\-]?\\s*(.+?)(?:\\.|\\n|$)")
     )
     for (pattern in patterns) {
-        val match = pattern.find(body)
-        val value = match?.groupValues?.getOrNull(1)?.trim()?.trimEnd('.', ',')
+        val value = pattern.find(body)?.groupValues?.getOrNull(1)?.trim()?.trimEnd('.', ',')
         if (!value.isNullOrBlank() && !value.equals("HDFC Bank", true)) return value
     }
     return "Unknown"
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun TagUpiDialog(
-    sms: UpiSms,
-    onDismiss: () -> Unit,
-    onSaved: (String) -> Unit
-) {
+private fun TagUpiDialog(sms: UpiSms, onDismiss: () -> Unit, onSaved: (String) -> Unit) {
     val scope = rememberCoroutineScope()
-    var tagName by remember { mutableStateOf(sms.recipient) }
-    var selectedIcon by remember { mutableStateOf(0) }
+    var tagName by remember { mutableStateOf("") }
+    var selectedIcon by remember { mutableStateOf("Restaurant") }
+    var selectedColor by remember { mutableStateOf("#FF7043") }
     var saving by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
 
     AlertDialog(
         onDismissRequest = { if (!saving) onDismiss() },
-        shape = RoundedCornerShape(32.dp),
-        title = { Text("Tag UPI", style = MaterialTheme.typography.headlineMedium) },
+        title = { Text(sms.recipient, fontWeight = FontWeight.Bold) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 OutlinedTextField(
                     value = tagName,
-                    onValueChange = { tagName = it },
+                    onValueChange = { tagName = it; error = null },
                     label = { Text("Tag Name") },
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(20.dp)
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
                 )
-                Text("Choose Icon", style = MaterialTheme.typography.titleMedium)
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    tagIcons.chunked(4).forEachIndexed { rowIndex, row ->
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            row.forEachIndexed { colIndex, icon ->
-                                val index = rowIndex * 4 + colIndex
-                                Box(
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .aspectRatio(1f)
-                                        .clip(RoundedCornerShape(16.dp))
-                                        .background(if (selectedIcon == index) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    IconButton(onClick = { selectedIcon = index }) {
-                                        Icon(icon, contentDescription = null, tint = if (selectedIcon == index) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant)
-                                    }
-                                }
-                            }
-                            repeat(4 - row.size) { Spacer(Modifier.weight(1f)) }
+                error?.let { Text(it, color = ExpenseRed, style = MaterialTheme.typography.bodySmall) }
+                Text("Choose Icon", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    CategoryIconHelper.AVAILABLE_ICONS.take(16).forEach { (iconKey, vector) ->
+                        val selected = selectedIcon == iconKey
+                        Box(
+                            modifier = Modifier.size(38.dp).clip(RoundedCornerShape(8.dp))
+                                .background(if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant)
+                                .clickable { selectedIcon = iconKey },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(vector, contentDescription = iconKey, tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(22.dp))
                         }
                     }
                 }
-                error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                Text("Choose Color", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    CategoryIconHelper.PRESET_COLORS.take(12).forEach { colorHex ->
+                        val selected = selectedColor.equals(colorHex, ignoreCase = true)
+                        Box(
+                            modifier = Modifier.size(34.dp).clip(CircleShape)
+                                .background(CategoryIconHelper.parseColor(colorHex))
+                                .clickable { selectedColor = colorHex },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (selected) Icon(Icons.Default.Check, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+                        }
+                    }
+                }
             }
         },
         confirmButton = {
             Button(
                 enabled = !saving,
                 onClick = {
-                    if (tagName.trim().isEmpty()) {
-                        error = "Tag name is required"
-                        return@Button
-                    }
+                    if (tagName.isBlank()) { error = "Tag name cannot be empty"; return@Button }
                     val uid = FirebaseAuth.getInstance().currentUser?.uid
-                    if (uid == null) {
-                        error = "User is not logged in"
-                        return@Button
-                    }
+                    if (uid == null) { error = "User is not logged in"; return@Button }
                     saving = true
                     scope.launch {
                         try {
-                            FirebaseFirestore.getInstance()
-                                .collection("users").document(uid)
-                                .collection("upi_tags").document(sms.id)
+                            FirebaseFirestore.getInstance().collection("users").document(uid).collection("upi_tags").document(sms.id)
                                 .set(mapOf(
                                     "tagName" to tagName.trim(),
-                                    "iconIndex" to selectedIcon,
+                                    "iconName" to selectedIcon,
+                                    "colorHex" to selectedColor,
                                     "recipient" to sms.recipient,
                                     "sender" to sms.sender,
                                     "amount" to sms.amount,
@@ -261,12 +230,9 @@ private fun TagUpiDialog(
                             saving = false
                         }
                     }
-                },
-                shape = RoundedCornerShape(28.dp)
+                }
             ) { Text(if (saving) "Saving..." else "Save") }
         },
-        dismissButton = {
-            TextButton(enabled = !saving, onClick = onDismiss) { Text("Cancel") }
-        }
+        dismissButton = { TextButton(enabled = !saving, onClick = onDismiss) { Text("Cancel") } }
     )
 }
