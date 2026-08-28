@@ -28,8 +28,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.data.local.database.entity.CategoryEntity
 import com.example.ui.theme.ExpenseRed
 import com.example.utils.CategoryIconHelper
+import com.example.utils.CurrencyUtils
+import com.example.ui.transactions.Wallet
+import com.example.ui.transactions.WalletBalanceManager
 import com.example.viewmodel.ExpenseViewModel
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -37,7 +41,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
 private data class UpiSms(val id: String, val sender: String, val body: String, val date: Long, val amount: String?, val recipient: String)
-private data class UpiTag(val id: String, val tagName: String, val iconName: String, val colorHex: String, val recipient: String, val categoryName: String?)
+private data class UpiTag(val id: String, val tagName: String, val iconName: String, val colorHex: String, val recipient: String, val categoryId: Long?, val categoryName: String?)
 
 @Composable
 fun UPITransactionsScreen(viewModel: ExpenseViewModel) {
@@ -48,9 +52,13 @@ fun UPITransactionsScreen(viewModel: ExpenseViewModel) {
     var upiTags by remember { mutableStateOf<List<UpiTag>>(emptyList()) }
     var hasPermission by remember { mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.READ_SMS) == PackageManager.PERMISSION_GRANTED) }
     var selectedSms by remember { mutableStateOf<UpiSms?>(null) }
+    var selectedTagForTransaction by remember { mutableStateOf<UpiTag?>(null) }
     var showTagDialog by remember { mutableStateOf(false) }
+    var showWalletDialog by remember { mutableStateOf(false) }
     var selectedTab by remember { mutableStateOf(0) }
     var message by remember { mutableStateOf<String?>(null) }
+    var savingTransaction by remember { mutableStateOf(false) }
+    val wallets = remember { mutableStateListOf<Wallet>() }
 
     fun loadTags() {
         scope.launch {
@@ -62,10 +70,25 @@ fun UPITransactionsScreen(viewModel: ExpenseViewModel) {
                     val tagName = doc.getString("tagName")?.trim()
                     if (recipient.isNullOrBlank() || tagName.isNullOrBlank()) null else UpiTag(
                         doc.id, tagName, doc.getString("iconName") ?: "Category",
-                        doc.getString("colorHex") ?: "#00897B", recipient, doc.getString("categoryName")?.trim()
+                        doc.getString("colorHex") ?: "#00897B", recipient,
+                        doc.getLong("categoryId"), doc.getString("categoryName")?.trim()
                     )
                 }
             } catch (_: Exception) { }
+        }
+    }
+
+    val uid = FirebaseAuth.getInstance().currentUser?.uid
+    val walletCollection = remember(uid) {
+        uid?.let { FirebaseFirestore.getInstance().collection("users").document(it).collection("wallets") }
+    }
+
+    LaunchedEffect(uid) {
+        walletCollection?.addSnapshotListener { snapshot, _ ->
+            wallets.clear()
+            snapshot?.documents?.mapNotNull { doc ->
+                Wallet(doc.id, doc.getString("name") ?: "", doc.getDouble("balance") ?: 0.0)
+            }?.let(wallets::addAll)
         }
     }
 
@@ -101,9 +124,9 @@ fun UPITransactionsScreen(viewModel: ExpenseViewModel) {
                             }
                             IconButton(onClick = {
                                 scope.launch {
-                                    val uid = FirebaseAuth.getInstance().currentUser?.uid ?: return@launch
+                                    val userId = FirebaseAuth.getInstance().currentUser?.uid ?: return@launch
                                     try {
-                                        FirebaseFirestore.getInstance().collection("users").document(uid).collection("upi_tags").document(tag.id).delete().await()
+                                        FirebaseFirestore.getInstance().collection("users").document(userId).collection("upi_tags").document(tag.id).delete().await()
                                         upiTags = upiTags.filterNot { it.id == tag.id }
                                         message = "Tag deleted"
                                     } catch (e: Exception) { message = e.message ?: "Unable to delete tag" }
@@ -143,7 +166,22 @@ fun UPITransactionsScreen(viewModel: ExpenseViewModel) {
                         }
                         Spacer(Modifier.height(6.dp)); Text(sms.body, style = MaterialTheme.typography.bodyMedium, maxLines = 4)
                         Spacer(Modifier.height(10.dp)); Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            OutlinedButton(onClick = { message = "Add Transaction feature is ready for the next step" }) { Text("Add Transaction") }
+                            OutlinedButton(
+                                enabled = matchingTag != null && !savingTransaction,
+                                onClick = {
+                                    if (matchingTag == null) {
+                                        message = "Please tag this recipient first"
+                                    } else if (sms.amount == null) {
+                                        message = "Amount could not be read from this SMS"
+                                    } else if (wallets.isEmpty()) {
+                                        message = "Please add a wallet first"
+                                    } else {
+                                        selectedSms = sms
+                                        selectedTagForTransaction = matchingTag
+                                        showWalletDialog = true
+                                    }
+                                }
+                            ) { Text("Add Transaction") }
                             if (matchingTag == null) Button(onClick = { selectedSms = sms; showTagDialog = true }) { Text("Tag UPI") }
                         }
                     }
@@ -159,9 +197,70 @@ fun UPITransactionsScreen(viewModel: ExpenseViewModel) {
         onDismiss = { showTagDialog = false; selectedSms = null },
         onSaved = { savedMessage -> message = savedMessage; showTagDialog = false; selectedSms = null }
     )
+
+    if (showWalletDialog && selectedSms != null && selectedTagForTransaction != null) {
+        UpiWalletSelectionDialog(
+            sms = selectedSms!!,
+            tag = selectedTagForTransaction!!,
+            wallets = wallets,
+            categories = expenseCategories,
+            saving = savingTransaction,
+            onDismiss = {
+                if (!savingTransaction) {
+                    showWalletDialog = false
+                    selectedSms = null
+                    selectedTagForTransaction = null
+                }
+            },
+            onWalletSelected = { wallet ->
+                val sms = selectedSms ?: return@UpiWalletSelectionDialog
+                val tag = selectedTagForTransaction ?: return@UpiWalletSelectionDialog
+                val category = expenseCategories.firstOrNull { tag.categoryId != null && it.id == tag.categoryId }
+                    ?: expenseCategories.firstOrNull { it.name.equals(tag.categoryName, ignoreCase = true) }
+                val paise = sms.amount?.let { parseDisplayAmountToPaise(it) }
+                if (category == null) {
+                    message = "Category for this tag was not found"
+                    return@UpiWalletSelectionDialog
+                }
+                if (paise == null || paise <= 0) {
+                    message = "Invalid transaction amount"
+                    return@UpiWalletSelectionDialog
+                }
+                savingTransaction = true
+                scope.launch {
+                    viewModel.saveTransaction(
+                        type = "EXPENSE",
+                        amountInPaise = paise,
+                        category = category,
+                        date = sms.date,
+                        note = "${sms.recipient} • ${tag.tagName}",
+                        onComplete = {
+                            WalletBalanceManager.applyTransaction(
+                                walletId = wallet.id,
+                                type = "EXPENSE",
+                                amountInPaise = paise,
+                                onComplete = {
+                                    savingTransaction = false
+                                    showWalletDialog = false
+                                    selectedSms = null
+                                    selectedTagForTransaction = null
+                                    message = "Transaction added to ${wallet.name}"
+                                }
+                            )
+                        }
+                    )
+                }
+            }
+        )
+    }
 }
 
 private fun tagsMatch(savedRecipient: String, smsRecipient: String): Boolean = savedRecipient.trim().replace(Regex("\\s+"), " ").lowercase() == smsRecipient.trim().replace(Regex("\\s+"), " ").lowercase()
+
+private fun parseDisplayAmountToPaise(value: String): Long? {
+    val cleaned = value.replace("₹", "").replace(",", "").trim()
+    return CurrencyUtils.parseAmountToPaise(cleaned)
+}
 
 private fun readUpiSms(context: Context): List<UpiSms> {
     val result = mutableListOf<UpiSms>()
@@ -192,14 +291,67 @@ private fun extractRecipient(body: String): String {
     return "Unknown"
 }
 
+@Composable
+private fun UpiWalletSelectionDialog(
+    sms: UpiSms,
+    tag: UpiTag,
+    wallets: List<Wallet>,
+    categories: List<CategoryEntity>,
+    saving: Boolean,
+    onDismiss: () -> Unit,
+    onWalletSelected: (Wallet) -> Unit
+) {
+    val categoryName = categories.firstOrNull { tag.categoryId != null && it.id == tag.categoryId }?.name ?: tag.categoryName ?: "Unknown"
+    AlertDialog(
+        onDismissRequest = { if (!saving) onDismiss() },
+        title = { Text("Select Wallet", fontWeight = FontWeight.Bold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(sms.recipient, fontWeight = FontWeight.SemiBold)
+                Text("Amount: ${sms.amount ?: "—"}")
+                Text("Category: $categoryName", color = MaterialTheme.colorScheme.primary)
+                Spacer(Modifier.height(4.dp))
+                wallets.forEach { wallet ->
+                    Surface(
+                        modifier = Modifier.fillMaxWidth().clickable(enabled = !saving) { onWalletSelected(wallet) },
+                        shape = RoundedCornerShape(14.dp),
+                        tonalElevation = 2.dp,
+                        color = MaterialTheme.colorScheme.surfaceVariant
+                    ) {
+                        Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.AccountBalanceWallet, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                            Spacer(Modifier.width(10.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(wallet.name, fontWeight = FontWeight.SemiBold)
+                                Text("Balance: ₹${String.format("%.2f", wallet.balance)}", style = MaterialTheme.typography.bodySmall)
+                            }
+                            Icon(Icons.Default.ChevronRight, contentDescription = null)
+                        }
+                    }
+                }
+                if (saving) {
+                    Spacer(Modifier.height(4.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Adding transaction...")
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = { TextButton(enabled = !saving, onClick = onDismiss) { Text("Cancel") } }
+    )
+}
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun TagUpiDialog(sms: UpiSms, categories: List<com.example.data.local.database.entity.CategoryEntity>, onDismiss: () -> Unit, onSaved: (String) -> Unit) {
+private fun TagUpiDialog(sms: UpiSms, categories: List<CategoryEntity>, onDismiss: () -> Unit, onSaved: (String) -> Unit) {
     val scope = rememberCoroutineScope()
     var tagName by remember { mutableStateOf("") }
     var selectedIcon by remember { mutableStateOf("Restaurant") }
     var selectedColor by remember { mutableStateOf("#FF7043") }
-    var selectedCategory by remember { mutableStateOf<com.example.data.local.database.entity.CategoryEntity?>(null) }
+    var selectedCategory by remember { mutableStateOf<CategoryEntity?>(null) }
     var categoryMenuExpanded by remember { mutableStateOf(false) }
     var saving by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
