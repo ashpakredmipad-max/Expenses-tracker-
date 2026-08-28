@@ -82,32 +82,14 @@ fun ExpenseApp(viewModel: ExpenseViewModel, navController: NavHostController = r
         topBar = {
             if (isBottomBarVisible || isUpiScreen) {
                 TopAppBar(
-                    title = {
-                        Text(
-                            text = if (isUpiScreen) "UPI Transactions" else currentScreen.title,
-                            style = MaterialTheme.typography.titleLarge.copy(
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 22.sp,
-                                letterSpacing = 0.5.sp
-                            )
-                        )
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = Color.Transparent,
-                        scrolledContainerColor = Color.Transparent
-                    ),
+                    title = { Text(text = if (isUpiScreen) "UPI Transactions" else currentScreen.title, style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold, fontSize = 22.sp, letterSpacing = 0.5.sp)) },
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent, scrolledContainerColor = Color.Transparent),
                     navigationIcon = {
-                        if (isUpiScreen) {
-                            IconButton(onClick = { navController.popBackStack() }) {
-                                Text("‹", fontSize = 36.sp)
-                            }
-                        }
+                        if (isUpiScreen) IconButton(onClick = { navController.popBackStack() }) { Text("‹", fontSize = 36.sp) }
                     },
                     actions = {
                         if (isBottomBarVisible) {
-                            IconButton(onClick = { navController.navigate("upi_transactions") }) {
-                                Text("@", fontSize = 22.sp)
-                            }
+                            IconButton(onClick = { navController.navigate("upi_transactions") }) { Text("@", fontSize = 22.sp) }
                             IconButton(onClick = { menuExpanded = true }) { Icon(Icons.Filled.MoreVert, contentDescription = "More options") }
                             DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
                                 DropdownMenuItem(text = { Text("Logout") }, onClick = { menuExpanded = false; FirebaseAuth.getInstance().signOut() })
@@ -127,13 +109,7 @@ fun ExpenseApp(viewModel: ExpenseViewModel, navController: NavHostController = r
                             label = { Text(text = screen.title, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal) },
                             selected = isSelected,
                             onClick = {
-                                if (currentRoute != screen.route) {
-                                    navController.navigate(screen.route) {
-                                        popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                                        launchSingleTop = true
-                                        restoreState = true
-                                    }
-                                }
+                                if (currentRoute != screen.route) navController.navigate(screen.route) { popUpTo(navController.graph.findStartDestination().id) { saveState = true }; launchSingleTop = true; restoreState = true }
                             },
                             modifier = Modifier.testTag("nav_item_${screen.route}")
                         )
@@ -148,7 +124,7 @@ fun ExpenseApp(viewModel: ExpenseViewModel, navController: NavHostController = r
             composable(Screen.Calendar.route) { CalendarScreen(viewModel) }
             composable(Screen.Reports.route) { ReportsScreen(viewModel, { navController.navigate("add_transaction") }) }
             composable(Screen.Settings.route) { SettingsScreen(viewModel, { navController.navigate("categories") }, { navController.navigate("budget") }) }
-            composable("upi_transactions") { UPITransactionsScreen() }
+            composable("upi_transactions") { UPITransactionsScreen(viewModel) }
             composable("add_transaction") { AddEditTransactionScreen(viewModel, 0L, { navController.popBackStack() }, { navController.navigate("categories") }) }
             composable("edit_transaction/{transactionId}", arguments = listOf(navArgument("transactionId") { type = NavType.LongType })) { entry -> AddEditTransactionScreen(viewModel, entry.arguments?.getLong("transactionId") ?: 0L, { navController.popBackStack() }, { navController.navigate("categories") }) }
             composable("categories") { CategoriesScreen(viewModel, { navController.popBackStack() }) }
