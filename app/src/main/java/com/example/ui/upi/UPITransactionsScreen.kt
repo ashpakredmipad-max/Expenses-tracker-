@@ -58,7 +58,7 @@ import java.util.Date
 import java.util.Locale
 import java.util.regex.Pattern
 
-private data class UpiSmsTransaction(val sender: String, val amount: String, val date: String, val message: String)
+private data class UpiSmsTransaction(val sender: String, val amount: String, val date: String, val message: String, val payeeName: String?)
 private data class WalletOption(val id: String, val name: String)
 
 @Composable
@@ -67,7 +67,7 @@ fun UPITransactionsScreen(onAddTransaction: (String, String) -> Unit = { _, _ ->
     val database = remember { AppDatabase.getInstance(context) }
     var transactions by remember { mutableStateOf<List<UpiSmsTransaction>>(emptyList()) }
     var permissionDenied by remember { mutableStateOf(false) }
-    var registerSender by remember { mutableStateOf<String?>(null) }
+    var registerTransaction by remember { mutableStateOf<UpiSmsTransaction?>(null) }
 
     fun loadTransactions() {
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.READ_SMS) != PackageManager.PERMISSION_GRANTED) return
@@ -86,7 +86,7 @@ fun UPITransactionsScreen(onAddTransaction: (String, String) -> Unit = { _, _ ->
                 val amount = extractAmount(body) ?: continue
                 val sender = if (addressIndex >= 0) it.getString(addressIndex).orEmpty() else ""
                 val time = if (dateIndex >= 0) it.getLong(dateIndex) else 0L
-                result.add(UpiSmsTransaction(sender, amount, SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.getDefault()).format(Date(time)), body))
+                result.add(UpiSmsTransaction(sender, amount, SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.getDefault()).format(Date(time)), body, extractPayeeName(body)))
             }
         }
         transactions = result
@@ -111,11 +111,11 @@ fun UPITransactionsScreen(onAddTransaction: (String, String) -> Unit = { _, _ ->
                         Column(modifier = Modifier.padding(14.dp)) {
                             Text("₹${transaction.amount}", style = MaterialTheme.typography.titleLarge)
                             Text(transaction.date, style = MaterialTheme.typography.bodySmall)
-                            if (transaction.sender.isNotBlank()) Text(transaction.sender, style = MaterialTheme.typography.bodyMedium)
+                            Text(transaction.payeeName ?: transaction.sender, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
                             Text(transaction.message, modifier = Modifier.padding(top = 6.dp), style = MaterialTheme.typography.bodyMedium)
                             Row(modifier = Modifier.fillMaxWidth().padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Button(onClick = { onAddTransaction(transaction.amount, transaction.message) }, modifier = Modifier.weight(1f)) { Text("Add Transaction") }
-                                Button(onClick = { registerSender = transaction.sender }, modifier = Modifier.weight(1f)) { Text("Register UPI") }
+                                Button(onClick = { registerTransaction = transaction }, modifier = Modifier.weight(1f)) { Text("Register UPI") }
                             }
                         }
                     }
@@ -123,7 +123,7 @@ fun UPITransactionsScreen(onAddTransaction: (String, String) -> Unit = { _, _ ->
             }
         }
     }
-    registerSender?.let { sender -> RegisterUpiDialog(sender, database) { registerSender = null } }
+    registerTransaction?.let { transaction -> RegisterUpiDialog(transaction.payeeName ?: "", database) { registerTransaction = null } }
 }
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -166,8 +166,7 @@ private fun RegisterUpiDialog(initialName: String, database: AppDatabase, onDism
                             Surface(shape = RoundedCornerShape(12.dp), color = if (isSelected) catColor.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surface, tonalElevation = if (isSelected) 3.dp else 1.dp, modifier = Modifier.border(if (isSelected) 2.dp else 1.dp, if (isSelected) catColor else MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp)).clickable(enabled = !saving) { selectedCategory = category }) {
                                 Row(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                                     Icon(CategoryIconHelper.getIcon(category.iconName), contentDescription = category.name, tint = catColor, modifier = Modifier.size(20.dp))
-                                    Spacer(Modifier.width(8.dp))
-                                    Text(category.name, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal, color = if (isSelected) catColor else MaterialTheme.colorScheme.onSurface)
+                                    Spacer(Modifier.width(8.dp)); Text(category.name, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal, color = if (isSelected) catColor else MaterialTheme.colorScheme.onSurface)
                                 }
                             }
                         }
@@ -182,8 +181,7 @@ private fun RegisterUpiDialog(initialName: String, database: AppDatabase, onDism
                             Surface(shape = RoundedCornerShape(12.dp), color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surface, tonalElevation = if (isSelected) 3.dp else 1.dp, modifier = Modifier.border(if (isSelected) 2.dp else 1.dp, if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp)).clickable(enabled = !saving) { selectedWallet = wallet }) {
                                 Row(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                                     Icon(Icons.Default.AccountBalanceWallet, contentDescription = wallet.name, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
-                                    Spacer(Modifier.width(8.dp))
-                                    Text(wallet.name, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal)
+                                    Spacer(Modifier.width(8.dp)); Text(wallet.name, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal)
                                 }
                             }
                         }
@@ -224,4 +222,20 @@ private fun RegisterUpiDialog(initialName: String, database: AppDatabase, onDism
 private fun extractAmount(message: String): String? {
     val matcher = Pattern.compile("(?:rs\\.?|inr|₹)\\s*([0-9,]+(?:\\.[0-9]{1,2})?)", Pattern.CASE_INSENSITIVE).matcher(message)
     return if (matcher.find()) matcher.group(1)?.replace(",", "") else null
+}
+
+private fun extractPayeeName(message: String): String? {
+    val patterns = listOf(
+        Pattern.compile("\\bto\\s*[:\\-]?\\s*([A-Za-z][A-Za-z0-9 .&'_-]{1,60}?)(?=\\s+(?:via|using|on|for|ref|upi|vpa)\\b|[,.]|$)", Pattern.CASE_INSENSITIVE),
+        Pattern.compile("\\bpaid\\s+to\\s*[:\\-]?\\s*([A-Za-z][A-Za-z0-9 .&'_-]{1,60}?)(?=\\s+(?:via|using|on|for|ref|upi|vpa)\\b|[,.]|$)", Pattern.CASE_INSENSITIVE),
+        Pattern.compile("\\bsent\\s+to\\s*[:\\-]?\\s*([A-Za-z][A-Za-z0-9 .&'_-]{1,60}?)(?=\\s+(?:via|using|on|for|ref|upi|vpa)\\b|[,.]|$)", Pattern.CASE_INSENSITIVE)
+    )
+    for (pattern in patterns) {
+        val matcher = pattern.matcher(message)
+        if (matcher.find()) {
+            val value = matcher.group(1)?.trim()?.replace(Regex("\\s+"), " ")
+            if (!value.isNullOrBlank() && !value.equals("upi", true) && !value.equals("vpa", true)) return value
+        }
+    }
+    return null
 }
