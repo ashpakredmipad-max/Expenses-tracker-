@@ -99,7 +99,8 @@ fun UPITransactionsScreen() {
         if (!showTagDialog) loadTags()
     }
 
-    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+    // Only horizontal padding here so there is no extra gap above the tabs.
+    Column(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
         TabRow(selectedTabIndex = selectedTab) {
             Tab(selected = selectedTab == 0, onClick = { selectedTab = 0 }, text = { Text("Messages") })
             Tab(selected = selectedTab == 1, onClick = { selectedTab = 1 }, text = { Text("Tags") })
@@ -315,6 +316,7 @@ private fun TagUpiDialog(sms: UpiSms, onDismiss: () -> Unit, onSaved: (String) -
                 }
             }) { Text(if (saving) "Saving..." else "Save") }
         },
-        dismissButton = { TextButton(enabled = !saving, onClick = onDismiss) { Text("Cancel") } }
+        dismissButton = { TextButton(enabled = !saving, onClick = onDismiss) { Text("Cancel") }
+        }
     )
 }
