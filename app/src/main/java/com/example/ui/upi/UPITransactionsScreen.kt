@@ -38,6 +38,7 @@ private data class UpiSmsTransaction(val sender: String, val amount: String, val
 private data class TagOption(val id: String, val name: String, val icon: String, val color: String)
 private data class RegisteredUpi(val id: String, val name: String, val tags: List<TagOption>)
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun UPITransactionsScreen(onAddTransaction: (String, String) -> Unit = { _, _ -> }) {
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -235,6 +236,7 @@ private fun RegisterUpiDialog(initialName: String, database: AppDatabase, onDism
     if (showAddTag) AddTagDialog(uid = uid, onDismiss = { showAddTag = false })
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun AddTagDialog(uid: String?, onDismiss: () -> Unit) {
     val scope = rememberCoroutineScope()
