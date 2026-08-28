@@ -5,12 +5,34 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+
+@Composable
+fun UPITransactionsScreen() {
+    var showRegisterDialog by remember { mutableStateOf(false) }
+
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        Button(onClick = { showRegisterDialog = true }) {
+            Text("Register UPI")
+        }
+    }
+
+    if (showRegisterDialog) {
+        RegisterUpiDialogNew(
+            initialUpiName = "",
+            onDismiss = { showRegisterDialog = false }
+        )
+    }
+}
 
 @Composable
 fun RegisterUpiDialogNew(
@@ -30,15 +52,22 @@ fun RegisterUpiDialogNew(
         val uid = FirebaseAuth.getInstance().currentUser?.uid
         if (uid != null) {
             val db = FirebaseFirestore.getInstance()
-            // Categories are read from the user's existing Firestore categories.
             val categorySnap = db.collection("users").document(uid).collection("categories").get().await()
             categories = categorySnap.documents.map { d ->
-                mapOf("id" to d.id, "name" to d.getString("name"), "icon" to d.getString("icon"), "color" to d.getString("color"), "type" to d.getString("type"))
+                mapOf(
+                    "id" to d.id,
+                    "name" to d.getString("name"),
+                    "icon" to d.getString("icon"),
+                    "color" to d.getString("color"),
+                    "type" to d.getString("type")
+                )
             }.filter { it["type"]?.toString()?.uppercase() == "EXPENSE" }
             selectedCategory = categories.firstOrNull()
 
             val walletSnap = db.collection("users").document(uid).collection("wallets").get().await()
-            wallets = walletSnap.documents.map { d -> mapOf("id" to d.id, "name" to d.getString("name")) }.filter { !it["name"].isNullOrBlank() }
+            wallets = walletSnap.documents.map { d ->
+                mapOf("id" to d.id, "name" to d.getString("name"))
+            }.filter { !it["name"].isNullOrBlank() }
             selectedWallet = wallets.firstOrNull()
         }
     }
@@ -59,14 +88,23 @@ fun RegisterUpiDialogNew(
                 Text("Category")
                 var categoryMenu by remember { mutableStateOf(false) }
                 Box {
-                    OutlinedButton(onClick = { categoryMenu = true }, modifier = Modifier.fillMaxWidth()) {
+                    OutlinedButton(
+                        onClick = { categoryMenu = true },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
                         Text(selectedCategory?.get("name")?.toString() ?: "Select Category")
                     }
-                    DropdownMenu(expanded = categoryMenu, onDismissRequest = { categoryMenu = false }) {
+                    DropdownMenu(
+                        expanded = categoryMenu,
+                        onDismissRequest = { categoryMenu = false }
+                    ) {
                         categories.forEach { category ->
                             DropdownMenuItem(
                                 text = { Text(category["name"]?.toString() ?: "") },
-                                onClick = { selectedCategory = category; categoryMenu = false }
+                                onClick = {
+                                    selectedCategory = category
+                                    categoryMenu = false
+                                }
                             )
                         }
                     }
@@ -75,21 +113,33 @@ fun RegisterUpiDialogNew(
                 Text("Wallet")
                 var walletMenu by remember { mutableStateOf(false) }
                 Box {
-                    OutlinedButton(onClick = { walletMenu = true }, modifier = Modifier.fillMaxWidth()) {
+                    OutlinedButton(
+                        onClick = { walletMenu = true },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
                         Icon(Icons.Default.AccountBalanceWallet, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
                         Text(selectedWallet?.get("name")?.toString() ?: "Select Wallet")
                     }
-                    DropdownMenu(expanded = walletMenu, onDismissRequest = { walletMenu = false }) {
+                    DropdownMenu(
+                        expanded = walletMenu,
+                        onDismissRequest = { walletMenu = false }
+                    ) {
                         wallets.forEach { wallet ->
                             DropdownMenuItem(
                                 text = { Text(wallet["name"]?.toString() ?: "") },
-                                leadingIcon = { Icon(Icons.Default.AccountBalanceWallet, contentDescription = null) },
-                                onClick = { selectedWallet = wallet; walletMenu = false }
+                                leadingIcon = {
+                                    Icon(Icons.Default.AccountBalanceWallet, contentDescription = null)
+                                },
+                                onClick = {
+                                    selectedWallet = wallet
+                                    walletMenu = false
+                                }
                             )
                         }
                     }
                 }
+
                 error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             }
         },
@@ -98,33 +148,57 @@ fun RegisterUpiDialogNew(
                 val uid = FirebaseAuth.getInstance().currentUser?.uid
                 val category = selectedCategory
                 val wallet = selectedWallet
-                if (upiName.trim().isEmpty()) { error = "UPI name is required"; return@TextButton }
-                if (category == null) { error = "Select a category"; return@TextButton }
-                if (wallet == null) { error = "Select a wallet"; return@TextButton }
-                if (uid == null) { error = "User is not logged in"; return@TextButton }
+                if (upiName.trim().isEmpty()) {
+                    error = "UPI name is required"
+                    return@TextButton
+                }
+                if (category == null) {
+                    error = "Select a category"
+                    return@TextButton
+                }
+                if (wallet == null) {
+                    error = "Select a wallet"
+                    return@TextButton
+                }
+                if (uid == null) {
+                    error = "User is not logged in"
+                    return@TextButton
+                }
+
                 saving = true
                 scope.launch {
                     try {
                         val db = FirebaseFirestore.getInstance()
-                        val ref = db.collection("users").document(uid).collection("registered_upi").document()
-                        ref.set(mapOf(
-                            "upiName" to upiName.trim(),
-                            "categoryId" to category["id"],
-                            "categoryName" to category["name"],
-                            "categoryIcon" to category["icon"],
-                            "categoryColor" to category["color"],
-                            "walletId" to wallet["id"],
-                            "walletName" to wallet["name"],
-                            "updatedAt" to com.google.firebase.Timestamp.now()
-                        )).await()
+                        val ref = db.collection("users")
+                            .document(uid)
+                            .collection("registered_upi")
+                            .document()
+                        ref.set(
+                            mapOf(
+                                "upiName" to upiName.trim(),
+                                "categoryId" to category["id"],
+                                "categoryName" to category["name"],
+                                "categoryIcon" to category["icon"],
+                                "categoryColor" to category["color"],
+                                "walletId" to wallet["id"],
+                                "walletName" to wallet["name"],
+                                "updatedAt" to com.google.firebase.Timestamp.now()
+                            )
+                        ).await()
                         onDismiss()
                     } catch (e: Exception) {
                         error = e.message ?: "Unable to save UPI"
                         saving = false
                     }
                 }
-            }) { Text(if (saving) "Saving..." else "Save") }
+            }) {
+                Text(if (saving) "Saving..." else "Save")
+            }
         },
-        dismissButton = { TextButton(enabled = !saving, onClick = onDismiss) { Text("Cancel") } }
+        dismissButton = {
+            TextButton(enabled = !saving, onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
     )
 }
