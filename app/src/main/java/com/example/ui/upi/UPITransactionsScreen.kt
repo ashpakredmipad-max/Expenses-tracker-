@@ -39,6 +39,9 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Locale
 
 private data class UpiSms(val id: String, val sender: String, val body: String, val date: Long, val amount: String?, val recipient: String)
 private data class UpiTag(val id: String, val tagName: String, val iconName: String, val colorHex: String, val recipient: String, val categoryId: Long?, val categoryName: String?)
@@ -48,6 +51,7 @@ fun UPITransactionsScreen(viewModel: ExpenseViewModel) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val expenseCategories by viewModel.expenseCategories.collectAsStateWithLifecycle()
+    val allTransactions by viewModel.allTransactions.collectAsStateWithLifecycle()
     var smsList by remember { mutableStateOf<List<UpiSms>>(emptyList()) }
     var upiTags by remember { mutableStateOf<List<UpiTag>>(emptyList()) }
     var hasPermission by remember { mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.READ_SMS) == PackageManager.PERMISSION_GRANTED) }
@@ -58,6 +62,7 @@ fun UPITransactionsScreen(viewModel: ExpenseViewModel) {
     var selectedTab by remember { mutableStateOf(0) }
     var message by remember { mutableStateOf<String?>(null) }
     var savingTransaction by remember { mutableStateOf(false) }
+    var selectedMonth by remember { mutableStateOf(Calendar.getInstance()) }
     val wallets = remember { mutableStateListOf<Wallet>() }
 
     fun loadTags() {
@@ -99,22 +104,25 @@ fun UPITransactionsScreen(viewModel: ExpenseViewModel) {
     LaunchedEffect(hasPermission) { if (hasPermission) smsList = readUpiSms(context); loadTags() }
     LaunchedEffect(showTagDialog) { if (!showTagDialog) loadTags() }
 
+    val monthTitle = SimpleDateFormat("MMMM yyyy", Locale.getDefault()).format(selectedMonth.time)
+    val monthSms = remember(smsList, selectedMonth) { smsList.filter { isSameMonth(it.date, selectedMonth) } }
+
     Column(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
         TabRow(selectedTabIndex = selectedTab) {
             Tab(selected = selectedTab == 0, onClick = { selectedTab = 0 }, text = { Text("Messages") })
             Tab(selected = selectedTab == 1, onClick = { selectedTab = 1 }, text = { Text("Tags") })
         }
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(8.dp))
 
         if (selectedTab == 1) {
             if (upiTags.isEmpty()) Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("No UPI tags added") }
             else LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 items(upiTags, key = { it.id }) { tag ->
                     val tagColor = CategoryIconHelper.parseColor(tag.colorHex)
-                    Card(modifier = Modifier.fillMaxWidth()) {
+                    Card(Modifier.fillMaxWidth()) {
                         Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
                             Box(Modifier.size(48.dp).clip(CircleShape).background(tagColor.copy(alpha = 0.16f)), contentAlignment = Alignment.Center) {
-                                Icon(CategoryIconHelper.getIcon(tag.iconName), contentDescription = tag.tagName, tint = tagColor, modifier = Modifier.size(25.dp))
+                                Icon(CategoryIconHelper.getIcon(tag.iconName), tag.tagName, tint = tagColor, modifier = Modifier.size(25.dp))
                             }
                             Spacer(Modifier.width(12.dp))
                             Column(Modifier.weight(1f)) {
@@ -131,7 +139,7 @@ fun UPITransactionsScreen(viewModel: ExpenseViewModel) {
                                         message = "Tag deleted"
                                     } catch (e: Exception) { message = e.message ?: "Unable to delete tag" }
                                 }
-                            }) { Icon(Icons.Default.Delete, contentDescription = "Delete tag", tint = MaterialTheme.colorScheme.error) }
+                            }) { Icon(Icons.Default.Delete, "Delete tag", tint = MaterialTheme.colorScheme.error) }
                         }
                     }
                 }
@@ -139,50 +147,52 @@ fun UPITransactionsScreen(viewModel: ExpenseViewModel) {
         } else if (!hasPermission) {
             Card(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(20.dp)) {
-                    Icon(Icons.Default.Sms, contentDescription = null); Spacer(Modifier.height(8.dp))
-                    Text("SMS permission required", style = MaterialTheme.typography.titleMedium)
-                    Text("Allow SMS access to show your UPI transaction messages.")
-                    Spacer(Modifier.height(12.dp)); Button(onClick = { permissionLauncher.launch(Manifest.permission.READ_SMS) }) { Text("Allow SMS Access") }
+                    Icon(Icons.Default.Sms, null); Spacer(Modifier.height(8.dp)); Text("SMS permission required", style = MaterialTheme.typography.titleMedium)
+                    Text("Allow SMS access to show your UPI transaction messages."); Spacer(Modifier.height(12.dp))
+                    Button(onClick = { permissionLauncher.launch(Manifest.permission.READ_SMS) }) { Text("Allow SMS Access") }
                 }
             }
-        } else if (smsList.isEmpty()) Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("No UPI transaction SMS found.") }
-        else LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            items(smsList, key = { it.id }) { sms ->
-                val matchingTag = upiTags.firstOrNull { tagsMatch(it.recipient, sms.recipient) }
-                Card(Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(14.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Sms, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                            Spacer(Modifier.width(8.dp)); Text(sms.recipient, style = MaterialTheme.typography.titleMedium)
-                            Spacer(Modifier.weight(1f)); sms.amount?.let { Text(it, style = MaterialTheme.typography.titleMedium) }
-                        }
-                        matchingTag?.let { tag ->
-                            Spacer(Modifier.height(8.dp)); val tagColor = CategoryIconHelper.parseColor(tag.colorHex)
-                            Row(Modifier.clip(RoundedCornerShape(18.dp)).background(tagColor.copy(alpha = 0.16f)).padding(horizontal = 10.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Icon(CategoryIconHelper.getIcon(tag.iconName), contentDescription = tag.tagName, tint = tagColor, modifier = Modifier.size(18.dp))
-                                Spacer(Modifier.width(6.dp)); Text(tag.tagName, color = tagColor, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.labelLarge)
+        } else {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                IconButton(onClick = { selectedMonth = (selectedMonth.clone() as Calendar).apply { add(Calendar.MONTH, -1) } }) { Icon(Icons.Default.ChevronLeft, "Previous month") }
+                Text(monthTitle, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                IconButton(onClick = { selectedMonth = (selectedMonth.clone() as Calendar).apply { add(Calendar.MONTH, 1) } }) { Icon(Icons.Default.ChevronRight, "Next month") }
+            }
+            if (monthSms.isEmpty()) Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("No UPI transaction SMS for $monthTitle") }
+            else LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                items(monthSms, key = { it.id }) { sms ->
+                    val matchingTag = upiTags.firstOrNull { tagsMatch(it.recipient, sms.recipient) }
+                    val alreadyAdded = isAlreadyAdded(sms, allTransactions)
+                    Card(Modifier.fillMaxWidth()) {
+                        Column(Modifier.padding(14.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Sms, null, tint = MaterialTheme.colorScheme.primary); Spacer(Modifier.width(8.dp)); Text(sms.recipient, style = MaterialTheme.typography.titleMedium)
+                                Spacer(Modifier.weight(1f)); sms.amount?.let { Text(it, style = MaterialTheme.typography.titleMedium) }
                             }
-                            tag.categoryName?.takeIf { it.isNotBlank() }?.let { Text("Category: $it", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 4.dp)) }
-                        }
-                        Spacer(Modifier.height(6.dp)); Text(sms.body, style = MaterialTheme.typography.bodyMedium, maxLines = 4)
-                        Spacer(Modifier.height(10.dp)); Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            OutlinedButton(
-                                enabled = matchingTag != null && !savingTransaction,
-                                onClick = {
-                                    if (matchingTag == null) {
-                                        message = "Please tag this recipient first"
-                                    } else if (sms.amount == null) {
-                                        message = "Amount could not be read from this SMS"
-                                    } else if (wallets.isEmpty()) {
-                                        message = "Please add a wallet first"
-                                    } else {
-                                        selectedSms = sms
-                                        selectedTagForTransaction = matchingTag
-                                        showWalletDialog = true
-                                    }
+                            matchingTag?.let { tag ->
+                                Spacer(Modifier.height(8.dp)); val tagColor = CategoryIconHelper.parseColor(tag.colorHex)
+                                Row(Modifier.clip(RoundedCornerShape(18.dp)).background(tagColor.copy(alpha = 0.16f)).padding(horizontal = 10.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(CategoryIconHelper.getIcon(tag.iconName), tag.tagName, tint = tagColor, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text(tag.tagName, color = tagColor, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.labelLarge)
                                 }
-                            ) { Text("Add Transaction") }
-                            if (matchingTag == null) Button(onClick = { selectedSms = sms; showTagDialog = true }) { Text("Tag UPI") }
+                                tag.categoryName?.takeIf { it.isNotBlank() }?.let { Text("Category: $it", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 4.dp)) }
+                            }
+                            Spacer(Modifier.height(6.dp)); Text(sms.body, style = MaterialTheme.typography.bodyMedium, maxLines = 4)
+                            Spacer(Modifier.height(10.dp))
+                            if (alreadyAdded) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(Icons.Default.CheckCircle, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp)); Spacer(Modifier.width(6.dp)); Text("Already Added", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
+                                }
+                            } else {
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    OutlinedButton(enabled = matchingTag != null && !savingTransaction, onClick = {
+                                        if (matchingTag == null) message = "Please tag this recipient first"
+                                        else if (sms.amount == null) message = "Amount could not be read from this SMS"
+                                        else if (wallets.isEmpty()) message = "Please add a wallet first"
+                                        else { selectedSms = sms; selectedTagForTransaction = matchingTag; showWalletDialog = true }
+                                    }) { Text("Add Transaction") }
+                                    if (matchingTag == null) Button(onClick = { selectedSms = sms; showTagDialog = true }) { Text("Tag UPI") }
+                                }
+                            }
                         }
                     }
                 }
@@ -191,76 +201,48 @@ fun UPITransactionsScreen(viewModel: ExpenseViewModel) {
         message?.let { Text(it, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 8.dp)) }
     }
 
-    if (showTagDialog && selectedSms != null) TagUpiDialog(
-        sms = selectedSms!!,
-        categories = expenseCategories,
-        onDismiss = { showTagDialog = false; selectedSms = null },
-        onSaved = { savedMessage -> message = savedMessage; showTagDialog = false; selectedSms = null }
-    )
-
+    if (showTagDialog && selectedSms != null) TagUpiDialog(selectedSms!!, expenseCategories, { showTagDialog = false; selectedSms = null }) { saved -> message = saved; showTagDialog = false; selectedSms = null }
     if (showWalletDialog && selectedSms != null && selectedTagForTransaction != null) {
-        UpiWalletSelectionDialog(
-            sms = selectedSms!!,
-            tag = selectedTagForTransaction!!,
-            wallets = wallets,
-            categories = expenseCategories,
-            saving = savingTransaction,
-            onDismiss = {
-                if (!savingTransaction) {
-                    showWalletDialog = false
-                    selectedSms = null
-                    selectedTagForTransaction = null
-                }
-            },
-            onWalletSelected = { wallet ->
-                val sms = selectedSms ?: return@UpiWalletSelectionDialog
-                val tag = selectedTagForTransaction ?: return@UpiWalletSelectionDialog
-                val category = expenseCategories.firstOrNull { tag.categoryId != null && it.id == tag.categoryId }
-                    ?: expenseCategories.firstOrNull { it.name.equals(tag.categoryName, ignoreCase = true) }
-                val paise = sms.amount?.let { parseDisplayAmountToPaise(it) }
-                if (category == null) {
-                    message = "Category for this tag was not found"
-                    return@UpiWalletSelectionDialog
-                }
-                if (paise == null || paise <= 0) {
-                    message = "Invalid transaction amount"
-                    return@UpiWalletSelectionDialog
-                }
-                savingTransaction = true
-                scope.launch {
-                    viewModel.saveTransaction(
-                        type = "EXPENSE",
-                        amountInPaise = paise,
-                        category = category,
-                        date = sms.date,
-                        note = "${sms.recipient} • ${tag.tagName}",
-                        onComplete = {
-                            WalletBalanceManager.applyTransaction(
-                                walletId = wallet.id,
-                                type = "EXPENSE",
-                                amountInPaise = paise,
-                                onComplete = {
-                                    savingTransaction = false
-                                    showWalletDialog = false
-                                    selectedSms = null
-                                    selectedTagForTransaction = null
-                                    message = "Transaction added to ${wallet.name}"
-                                }
-                            )
-                        }
-                    )
+        UpiWalletSelectionDialog(selectedSms!!, selectedTagForTransaction!!, wallets, expenseCategories, savingTransaction, { if (!savingTransaction) { showWalletDialog = false; selectedSms = null; selectedTagForTransaction = null } }) { wallet ->
+            val sms = selectedSms ?: return@UpiWalletSelectionDialog
+            val tag = selectedTagForTransaction ?: return@UpiWalletSelectionDialog
+            if (isAlreadyAdded(sms, allTransactions)) { message = "This transaction is already added"; showWalletDialog = false; return@UpiWalletSelectionDialog }
+            val category = expenseCategories.firstOrNull { tag.categoryId != null && it.id == tag.categoryId } ?: expenseCategories.firstOrNull { it.name.equals(tag.categoryName, true) }
+            val paise = sms.amount?.let(::parseDisplayAmountToPaise)
+            if (category == null) { message = "Category for this tag was not found"; return@UpiWalletSelectionDialog }
+            if (paise == null || paise <= 0) { message = "Invalid transaction amount"; return@UpiWalletSelectionDialog }
+            savingTransaction = true
+            scope.launch {
+                viewModel.saveTransaction("EXPENSE", paise, category, sms.date, "[UPI_SMS_ID:${sms.id}] ${sms.recipient} • ${tag.tagName}") {
+                    WalletBalanceManager.applyTransaction(wallet.id, "EXPENSE", paise, {
+                        savingTransaction = false; showWalletDialog = false; selectedSms = null; selectedTagForTransaction = null; message = "Transaction added to ${wallet.name}"
+                    })
                 }
             }
-        )
+        }
     }
 }
 
-private fun tagsMatch(savedRecipient: String, smsRecipient: String): Boolean = savedRecipient.trim().replace(Regex("\\s+"), " ").lowercase() == smsRecipient.trim().replace(Regex("\\s+"), " ").lowercase()
-
-private fun parseDisplayAmountToPaise(value: String): Long? {
-    val cleaned = value.replace("₹", "").replace(",", "").trim()
-    return CurrencyUtils.parseAmountToPaise(cleaned)
+private fun isSameMonth(timestamp: Long, selected: Calendar): Boolean {
+    val date = Calendar.getInstance().apply { timeInMillis = timestamp }
+    return date.get(Calendar.YEAR) == selected.get(Calendar.YEAR) && date.get(Calendar.MONTH) == selected.get(Calendar.MONTH)
 }
+
+private fun isAlreadyAdded(sms: UpiSms, transactions: List<com.example.data.local.database.entity.TransactionEntity>): Boolean {
+    val amount = sms.amount?.let(::parseDisplayAmountToPaise) ?: return false
+    val marker = "[UPI_SMS_ID:${sms.id}]"
+    if (transactions.any { it.type.equals("EXPENSE", true) && it.note.contains(marker) }) return true
+    val smsDay = Calendar.getInstance().apply { timeInMillis = sms.date }
+    return transactions.any {
+        if (!it.type.equals("EXPENSE", true) || it.amountInPaise != amount || !it.note.contains(sms.recipient, true)) return@any false
+        val txDay = Calendar.getInstance().apply { timeInMillis = it.date }
+        txDay.get(Calendar.YEAR) == smsDay.get(Calendar.YEAR) && txDay.get(Calendar.DAY_OF_YEAR) == smsDay.get(Calendar.DAY_OF_YEAR)
+    }
+}
+
+private fun tagsMatch(savedRecipient: String, smsRecipient: String): Boolean = savedRecipient.trim().replace(Regex("\\s+"), " ").equals(smsRecipient.trim().replace(Regex("\\s+"), " "), true)
+
+private fun parseDisplayAmountToPaise(value: String): Long? = CurrencyUtils.parseAmountToPaise(value.replace("₹", "").replace(",", "").trim())
 
 private fun readUpiSms(context: Context): List<UpiSms> {
     val result = mutableListOf<UpiSms>()
@@ -280,10 +262,7 @@ private fun readUpiSms(context: Context): List<UpiSms> {
 }
 
 private fun extractRecipient(body: String): String {
-    val patterns = listOf(
-        Regex("(?i)\\bto\\s+(.+?)(?:\\s+on\\s+|\\s+ref(?:erence)?\\s*|\\s+upi\\s*ref|$)"),
-        Regex("(?i)\\bto\\s*[:\\-]?\\s*(.+?)(?:\\.|\\n|$)")
-    )
+    val patterns = listOf(Regex("(?i)\\bto\\s+(.+?)(?:\\s+on\\s+|\\s+ref(?:erence)?\\s*|\\s+upi\\s*ref|$)"), Regex("(?i)\\bto\\s*[:\\-]?\\s*(.+?)(?:\\.|\\n|$)"))
     for (pattern in patterns) {
         val value = pattern.find(body)?.groupValues?.getOrNull(1)?.trim()?.trimEnd('.', ',')
         if (!value.isNullOrBlank() && !value.equals("HDFC Bank", true)) return value
@@ -292,122 +271,39 @@ private fun extractRecipient(body: String): String {
 }
 
 @Composable
-private fun UpiWalletSelectionDialog(
-    sms: UpiSms,
-    tag: UpiTag,
-    wallets: List<Wallet>,
-    categories: List<CategoryEntity>,
-    saving: Boolean,
-    onDismiss: () -> Unit,
-    onWalletSelected: (Wallet) -> Unit
-) {
+private fun UpiWalletSelectionDialog(sms: UpiSms, tag: UpiTag, wallets: List<Wallet>, categories: List<CategoryEntity>, saving: Boolean, onDismiss: () -> Unit, onWalletSelected: (Wallet) -> Unit) {
     val categoryName = categories.firstOrNull { tag.categoryId != null && it.id == tag.categoryId }?.name ?: tag.categoryName ?: "Unknown"
-    AlertDialog(
-        onDismissRequest = { if (!saving) onDismiss() },
-        title = { Text("Select Wallet", fontWeight = FontWeight.Bold) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text(sms.recipient, fontWeight = FontWeight.SemiBold)
-                Text("Amount: ${sms.amount ?: "—"}")
-                Text("Category: $categoryName", color = MaterialTheme.colorScheme.primary)
-                Spacer(Modifier.height(4.dp))
-                wallets.forEach { wallet ->
-                    Surface(
-                        modifier = Modifier.fillMaxWidth().clickable(enabled = !saving) { onWalletSelected(wallet) },
-                        shape = RoundedCornerShape(14.dp),
-                        tonalElevation = 2.dp,
-                        color = MaterialTheme.colorScheme.surfaceVariant
-                    ) {
-                        Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.AccountBalanceWallet, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                            Spacer(Modifier.width(10.dp))
-                            Column(Modifier.weight(1f)) {
-                                Text(wallet.name, fontWeight = FontWeight.SemiBold)
-                                Text("Balance: ₹${String.format("%.2f", wallet.balance)}", style = MaterialTheme.typography.bodySmall)
-                            }
-                            Icon(Icons.Default.ChevronRight, contentDescription = null)
-                        }
-                    }
-                }
-                if (saving) {
-                    Spacer(Modifier.height(4.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
-                        Spacer(Modifier.width(8.dp))
-                        Text("Adding transaction...")
+    AlertDialog(onDismissRequest = { if (!saving) onDismiss() }, title = { Text("Select Wallet", fontWeight = FontWeight.Bold) }, text = {
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text(sms.recipient, fontWeight = FontWeight.SemiBold); Text("Amount: ${sms.amount ?: "—"}"); Text("Category: $categoryName", color = MaterialTheme.colorScheme.primary); Spacer(Modifier.height(4.dp))
+            wallets.forEach { wallet ->
+                Surface(Modifier.fillMaxWidth().clickable(enabled = !saving) { onWalletSelected(wallet) }, shape = RoundedCornerShape(14.dp), tonalElevation = 2.dp, color = MaterialTheme.colorScheme.surfaceVariant) {
+                    Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.AccountBalanceWallet, null, tint = MaterialTheme.colorScheme.primary); Spacer(Modifier.width(10.dp)); Column(Modifier.weight(1f)) { Text(wallet.name, fontWeight = FontWeight.SemiBold); Text("Balance: ₹${String.format("%.2f", wallet.balance)}", style = MaterialTheme.typography.bodySmall) }; Icon(Icons.Default.ChevronRight, null)
                     }
                 }
             }
-        },
-        confirmButton = {},
-        dismissButton = { TextButton(enabled = !saving, onClick = onDismiss) { Text("Cancel") } }
-    )
+            if (saving) Row(verticalAlignment = Alignment.CenterVertically) { CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp); Spacer(Modifier.width(8.dp)); Text("Adding transaction...") }
+        }
+    }, confirmButton = {}, dismissButton = { TextButton(enabled = !saving, onClick = onDismiss) { Text("Cancel") } })
 }
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun TagUpiDialog(sms: UpiSms, categories: List<CategoryEntity>, onDismiss: () -> Unit, onSaved: (String) -> Unit) {
-    val scope = rememberCoroutineScope()
-    var tagName by remember { mutableStateOf("") }
-    var selectedIcon by remember { mutableStateOf("Restaurant") }
-    var selectedColor by remember { mutableStateOf("#FF7043") }
-    var selectedCategory by remember { mutableStateOf<CategoryEntity?>(null) }
-    var categoryMenuExpanded by remember { mutableStateOf(false) }
-    var saving by remember { mutableStateOf(false) }
-    var error by remember { mutableStateOf<String?>(null) }
-
-    AlertDialog(
-        onDismissRequest = { if (!saving) onDismiss() },
-        title = { Text(sms.recipient, fontWeight = FontWeight.Bold) },
-        text = {
-            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                OutlinedTextField(value = tagName, onValueChange = { tagName = it; error = null }, label = { Text("Tag Name") }, singleLine = true, shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth())
-                Box {
-                    OutlinedButton(onClick = { categoryMenuExpanded = true }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
-                        Text(selectedCategory?.name ?: "Select Expense Category", modifier = Modifier.weight(1f))
-                        Icon(Icons.Default.ArrowDropDown, contentDescription = null)
-                    }
-                    DropdownMenu(expanded = categoryMenuExpanded, onDismissRequest = { categoryMenuExpanded = false }) {
-                        categories.forEach { category -> DropdownMenuItem(text = { Text(category.name) }, onClick = { selectedCategory = category; categoryMenuExpanded = false }) }
-                    }
-                }
-                error?.let { Text(it, color = ExpenseRed, style = MaterialTheme.typography.bodySmall) }
-                Text("Choose Icon", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
-                FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    CategoryIconHelper.AVAILABLE_ICONS.take(16).forEach { (iconKey, vector) ->
-                        val selected = selectedIcon == iconKey
-                        Box(Modifier.size(38.dp).clip(RoundedCornerShape(8.dp)).background(if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant).clickable { selectedIcon = iconKey }, contentAlignment = Alignment.Center) {
-                            Icon(vector, contentDescription = iconKey, tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(22.dp))
-                        }
-                    }
-                }
-                Text("Choose Color", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
-                FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    CategoryIconHelper.PRESET_COLORS.take(12).forEach { colorHex ->
-                        val selected = selectedColor.equals(colorHex, true)
-                        Box(Modifier.size(34.dp).clip(CircleShape).background(CategoryIconHelper.parseColor(colorHex)).clickable { selectedColor = colorHex }, contentAlignment = Alignment.Center) {
-                            if (selected) Icon(Icons.Default.Check, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
-                        }
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            Button(enabled = !saving, onClick = {
-                if (tagName.isBlank()) { error = "Tag name cannot be empty"; return@Button }
-                if (selectedCategory == null) { error = "Please select an expense category"; return@Button }
-                val uid = FirebaseAuth.getInstance().currentUser?.uid ?: run { error = "User is not logged in"; return@Button }
-                saving = true
-                scope.launch {
-                    try {
-                        FirebaseFirestore.getInstance().collection("users").document(uid).collection("upi_tags").document(sms.id).set(
-                            mapOf("tagName" to tagName.trim(), "iconName" to selectedIcon, "colorHex" to selectedColor, "recipient" to sms.recipient, "sender" to sms.sender, "amount" to sms.amount, "body" to sms.body, "date" to sms.date, "categoryId" to selectedCategory!!.id, "categoryName" to selectedCategory!!.name, "updatedAt" to com.google.firebase.Timestamp.now())
-                        ).await()
-                        onSaved("UPI tag saved")
-                    } catch (e: Exception) { error = e.message ?: "Unable to save UPI tag"; saving = false }
-                }
-            }) { Text(if (saving) "Saving..." else "Save") }
-        },
-        dismissButton = { TextButton(enabled = !saving, onClick = onDismiss) { Text("Cancel") } }
-    )
+    val scope = rememberCoroutineScope(); var tagName by remember { mutableStateOf("") }; var selectedIcon by remember { mutableStateOf("Restaurant") }; var selectedColor by remember { mutableStateOf("#FF7043") }; var selectedCategory by remember { mutableStateOf<CategoryEntity?>(null) }; var categoryMenuExpanded by remember { mutableStateOf(false) }; var saving by remember { mutableStateOf(false) }; var error by remember { mutableStateOf<String?>(null) }
+    AlertDialog(onDismissRequest = { if (!saving) onDismiss() }, title = { Text(sms.recipient, fontWeight = FontWeight.Bold) }, text = {
+        Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            OutlinedTextField(tagName, { tagName = it; error = null }, label = { Text("Tag Name") }, singleLine = true, shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth())
+            Box { OutlinedButton(onClick = { categoryMenuExpanded = true }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) { Text(selectedCategory?.name ?: "Select Expense Category", Modifier.weight(1f)); Icon(Icons.Default.ArrowDropDown, null) }; DropdownMenu(categoryMenuExpanded, { categoryMenuExpanded = false }) { categories.forEach { category -> DropdownMenuItem(text = { Text(category.name) }, onClick = { selectedCategory = category; categoryMenuExpanded = false }) } } }
+            error?.let { Text(it, color = ExpenseRed, style = MaterialTheme.typography.bodySmall) }
+            Text("Choose Icon", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+            FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) { CategoryIconHelper.AVAILABLE_ICONS.take(16).forEach { (key, vector) -> val selected = selectedIcon == key; Box(Modifier.size(38.dp).clip(RoundedCornerShape(8.dp)).background(if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant).clickable { selectedIcon = key }, contentAlignment = Alignment.Center) { Icon(vector, key, tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(22.dp)) } } }
+            Text("Choose Color", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+            FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) { CategoryIconHelper.PRESET_COLORS.take(12).forEach { colorHex -> val selected = selectedColor.equals(colorHex, true); Box(Modifier.size(34.dp).clip(CircleShape).background(CategoryIconHelper.parseColor(colorHex)).clickable { selectedColor = colorHex }, contentAlignment = Alignment.Center) { if (selected) Icon(Icons.Default.Check, null, tint = Color.White, modifier = Modifier.size(18.dp)) } } }
+        }
+    }, confirmButton = { Button(enabled = !saving, onClick = {
+        if (tagName.isBlank()) { error = "Tag name cannot be empty"; return@Button }; if (selectedCategory == null) { error = "Please select an expense category"; return@Button }; val uid = FirebaseAuth.getInstance().currentUser?.uid ?: run { error = "User is not logged in"; return@Button }; saving = true
+        scope.launch { try { FirebaseFirestore.getInstance().collection("users").document(uid).collection("upi_tags").document(sms.id).set(mapOf("tagName" to tagName.trim(), "iconName" to selectedIcon, "colorHex" to selectedColor, "recipient" to sms.recipient, "sender" to sms.sender, "amount" to sms.amount, "body" to sms.body, "date" to sms.date, "categoryId" to selectedCategory!!.id, "categoryName" to selectedCategory!!.name, "updatedAt" to com.google.firebase.Timestamp.now())).await(); onSaved("UPI tag saved") } catch (e: Exception) { error = e.message ?: "Unable to save UPI tag"; saving = false } }
+    }) { Text(if (saving) "Saving..." else "Save") } }, dismissButton = { TextButton(enabled = !saving, onClick = onDismiss) { Text("Cancel") } })
 }
