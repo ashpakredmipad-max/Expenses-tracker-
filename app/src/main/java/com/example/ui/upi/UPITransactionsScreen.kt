@@ -8,7 +8,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.ExperimentalLayoutApi
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -159,7 +159,7 @@ fun UPITransactionsScreen(onAddTransaction: (String, String) -> Unit = { _, _ ->
     registerTransaction?.let { transaction -> RegisterUpiDialog(transaction.payeeName ?: "", database) { registerTransaction = null } }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun RegisterUpiDialog(initialName: String, database: AppDatabase, onDismiss: () -> Unit) {
     val scope = rememberCoroutineScope()
