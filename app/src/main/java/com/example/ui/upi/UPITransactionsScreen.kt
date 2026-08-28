@@ -44,6 +44,7 @@ private data class UpiSms(
 )
 
 private data class UpiTag(
+    val id: String,
     val tagName: String,
     val iconName: String,
     val colorHex: String,
@@ -53,12 +54,36 @@ private data class UpiTag(
 @Composable
 fun UPITransactionsScreen() {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     var smsList by remember { mutableStateOf<List<UpiSms>>(emptyList()) }
     var upiTags by remember { mutableStateOf<List<UpiTag>>(emptyList()) }
     var hasPermission by remember { mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.READ_SMS) == PackageManager.PERMISSION_GRANTED) }
     var selectedSms by remember { mutableStateOf<UpiSms?>(null) }
     var showTagDialog by remember { mutableStateOf(false) }
+    var selectedTab by remember { mutableStateOf(0) }
     var message by remember { mutableStateOf<String?>(null) }
+
+    fun loadTags() {
+        scope.launch {
+            val uid = FirebaseAuth.getInstance().currentUser?.uid ?: return@launch
+            try {
+                val snapshot = FirebaseFirestore.getInstance()
+                    .collection("users").document(uid).collection("upi_tags").get().await()
+                upiTags = snapshot.documents.mapNotNull { doc ->
+                    val recipient = doc.getString("recipient")?.trim()
+                    val tagName = doc.getString("tagName")?.trim()
+                    if (recipient.isNullOrBlank() || tagName.isNullOrBlank()) null
+                    else UpiTag(
+                        id = doc.id,
+                        tagName = tagName,
+                        iconName = doc.getString("iconName") ?: "Category",
+                        colorHex = doc.getString("colorHex") ?: "#00897B",
+                        recipient = recipient
+                    )
+                }
+            } catch (_: Exception) { }
+        }
+    }
 
     val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         hasPermission = granted
@@ -67,33 +92,73 @@ fun UPITransactionsScreen() {
 
     LaunchedEffect(hasPermission) {
         if (hasPermission) smsList = readUpiSms(context)
+        loadTags()
     }
 
     LaunchedEffect(showTagDialog) {
-        if (!showTagDialog) {
-            val uid = FirebaseAuth.getInstance().currentUser?.uid
-            if (uid != null) {
-                try {
-                    val snapshot = FirebaseFirestore.getInstance()
-                        .collection("users").document(uid).collection("upi_tags").get().await()
-                    upiTags = snapshot.documents.mapNotNull { doc ->
-                        val recipient = doc.getString("recipient")?.trim()
-                        val tagName = doc.getString("tagName")?.trim()
-                        if (recipient.isNullOrBlank() || tagName.isNullOrBlank()) null
-                        else UpiTag(
-                            tagName = tagName,
-                            iconName = doc.getString("iconName") ?: "Category",
-                            colorHex = doc.getString("colorHex") ?: "#00897B",
-                            recipient = recipient
-                        )
-                    }
-                } catch (_: Exception) { }
-            }
-        }
+        if (!showTagDialog) loadTags()
     }
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-        if (!hasPermission) {
+        TabRow(selectedTabIndex = selectedTab) {
+            Tab(selected = selectedTab == 0, onClick = { selectedTab = 0 }, text = { Text("Messages") })
+            Tab(selected = selectedTab == 1, onClick = { selectedTab = 1 }, text = { Text("Tags") })
+        }
+        Spacer(Modifier.height(12.dp))
+
+        if (selectedTab == 1) {
+            if (upiTags.isEmpty()) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text("No UPI tags added")
+                }
+            } else {
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    items(upiTags, key = { it.id }) { tag ->
+                        val tagColor = CategoryIconHelper.parseColor(tag.colorHex)
+                        Card(modifier = Modifier.fillMaxWidth()) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(14.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier.size(48.dp).clip(CircleShape).background(tagColor.copy(alpha = 0.16f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        CategoryIconHelper.getIcon(tag.iconName),
+                                        contentDescription = tag.tagName,
+                                        tint = tagColor,
+                                        modifier = Modifier.size(25.dp)
+                                    )
+                                }
+                                Spacer(Modifier.width(12.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(tag.tagName, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleMedium)
+                                    Spacer(Modifier.height(2.dp))
+                                    Text(tag.recipient, style = MaterialTheme.typography.bodyMedium)
+                                }
+                                IconButton(onClick = {
+                                    scope.launch {
+                                        val uid = FirebaseAuth.getInstance().currentUser?.uid ?: return@launch
+                                        try {
+                                            FirebaseFirestore.getInstance()
+                                                .collection("users").document(uid)
+                                                .collection("upi_tags").document(tag.id).delete().await()
+                                            upiTags = upiTags.filterNot { it.id == tag.id }
+                                            message = "Tag deleted"
+                                        } catch (e: Exception) {
+                                            message = e.message ?: "Unable to delete tag"
+                                        }
+                                    }
+                                }) {
+                                    Icon(Icons.Default.Delete, contentDescription = "Delete tag", tint = MaterialTheme.colorScheme.error)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        } else if (!hasPermission) {
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(20.dp)) {
                     Icon(Icons.Default.Sms, contentDescription = null)
@@ -122,26 +187,14 @@ fun UPITransactionsScreen() {
 
                             matchingTag?.let { tag ->
                                 Spacer(Modifier.height(8.dp))
+                                val tagColor = CategoryIconHelper.parseColor(tag.colorHex)
                                 Row(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(18.dp))
-                                        .background(CategoryIconHelper.parseColor(tag.colorHex).copy(alpha = 0.16f))
-                                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                                    modifier = Modifier.clip(RoundedCornerShape(18.dp)).background(tagColor.copy(alpha = 0.16f)).padding(horizontal = 10.dp, vertical = 6.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Icon(
-                                        CategoryIconHelper.getIcon(tag.iconName),
-                                        contentDescription = tag.tagName,
-                                        tint = CategoryIconHelper.parseColor(tag.colorHex),
-                                        modifier = Modifier.size(18.dp)
-                                    )
+                                    Icon(CategoryIconHelper.getIcon(tag.iconName), contentDescription = tag.tagName, tint = tagColor, modifier = Modifier.size(18.dp))
                                     Spacer(Modifier.width(6.dp))
-                                    Text(
-                                        tag.tagName,
-                                        color = CategoryIconHelper.parseColor(tag.colorHex),
-                                        fontWeight = FontWeight.SemiBold,
-                                        style = MaterialTheme.typography.labelLarge
-                                    )
+                                    Text(tag.tagName, color = tagColor, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.labelLarge)
                                 }
                             }
 
@@ -150,7 +203,9 @@ fun UPITransactionsScreen() {
                             Spacer(Modifier.height(10.dp))
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 OutlinedButton(onClick = { message = "Add Transaction feature is ready for the next step" }) { Text("Add Transaction") }
-                                Button(onClick = { selectedSms = sms; showTagDialog = true }) { Text("Tag UPI") }
+                                if (matchingTag == null) {
+                                    Button(onClick = { selectedSms = sms; showTagDialog = true }) { Text("Tag UPI") }
+                                }
                             }
                         }
                     }
@@ -170,10 +225,7 @@ fun UPITransactionsScreen() {
 }
 
 private fun tagsMatch(savedRecipient: String, smsRecipient: String): Boolean {
-    fun normalize(value: String): String = value
-        .trim()
-        .replace(Regex("\\s+"), " ")
-        .lowercase()
+    fun normalize(value: String): String = value.trim().replace(Regex("\\s+"), " ").lowercase()
     return normalize(savedRecipient) == normalize(smsRecipient)
 }
 
