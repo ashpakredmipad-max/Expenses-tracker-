@@ -42,14 +42,7 @@ jobs:
           path = Path("app/src/main/java/com/example/ui/upi/UPITransactionsScreen.kt")
           text = path.read_text()
           old = '''viewModel.saveTransaction("EXPENSE", paise, category, sms.date, "[UPI_SMS_ID:${sms.id}] ${sms.recipient} • ${tag.tagName}") {'''
-          new = '''viewModel.saveTransaction(
-              id = 0L,
-              type = "EXPENSE",
-              amountInPaise = paise,
-              category = category,
-              date = sms.date,
-              note = "[UPI_SMS_ID:${sms.id}] ${sms.recipient} • ${tag.tagName}"
-          ) {'''
+          new = '''viewModel.saveTransaction(0L, "EXPENSE", paise, category, sms.date, "[UPI_SMS_ID:${sms.id}] ${sms.recipient} • ${tag.tagName}") {'''
           if old not in text:
               raise SystemExit("Expected UPI saveTransaction call was not found; refusing to modify the source.")
           path.write_text(text.replace(old, new, 1))
