@@ -26,112 +26,41 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Install Android SDK packages
-        run: sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0"
-
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '9.3.1'
-
-      - name: Migrate UPI SMS ID to a private transaction field
+      - name: Apply UPI UI directly to source code
         run: |
           python3 - <<'PY'
           from pathlib import Path
-
-          def replace(path, old, new, label):
-              p = Path(path)
-              text = p.read_text()
-              if new in text:
-                  return False
-              if old not in text:
-                  raise SystemExit(f"Expected source pattern not found in {path}: {label}")
-              p.write_text(text.replace(old, new, 1))
-              return True
-
+          p = Path("app/src/main/java/com/example/ui/upi/UPITransactionsScreen.kt")
+          s = p.read_text()
+          replacements = [
+            ('Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {', 'Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp)) {'),
+            ('Spacer(Modifier.height(10.dp))\n                Surface(shape = RoundedCornerShape(16.dp)', 'Spacer(Modifier.height(8.dp))\n                Surface(shape = RoundedCornerShape(16.dp)'),
+            ('Text(title, modifier = Modifier.padding(vertical = 11.dp)', 'Text(title, modifier = Modifier.padding(vertical = 12.dp)'),
+            ('Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)', 'Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)'),
+            ('LazyColumn(Modifier.fillMaxSize().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp), contentPadding = PaddingValues(bottom = 24.dp))', 'LazyColumn(Modifier.fillMaxSize().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(bottom = 24.dp))'),
+            ('Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp), elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)) {\n                        Column(Modifier.padding(16.dp)) {', 'Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp), elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)) {\n                        Column(Modifier.padding(14.dp)) {'),
+            ('Spacer(Modifier.height(12.dp))\n                            Surface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp)', 'Spacer(Modifier.height(9.dp))\n                            Surface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(13.dp)'),
+            ('Text(sms.body, Modifier.padding(12.dp), style = MaterialTheme.typography.bodyMedium, maxLines = 4)', 'Text(sms.body, Modifier.padding(horizontal = 12.dp, vertical = 10.dp), style = MaterialTheme.typography.bodyMedium, maxLines = 3)'),
+            ('Spacer(Modifier.height(10.dp)); val tagColor', 'Spacer(Modifier.height(8.dp)); val tagColor'),
+            ('Spacer(Modifier.height(12.dp))\n                            if (alreadyAdded)', 'Spacer(Modifier.height(9.dp))\n                            if (alreadyAdded)'),
+            ('shape = RoundedCornerShape(13.dp)) { Icon(Icons.Default.Add', 'shape = RoundedCornerShape(12.dp)) { Icon(Icons.Default.Add'),
+            ('shape = RoundedCornerShape(13.dp)) { Icon(Icons.Default.LocalOffer', 'shape = RoundedCornerShape(12.dp)) { Icon(Icons.Default.LocalOffer'),
+          ]
           changed = False
-
-          changed |= replace(
-              "app/src/main/java/com/example/data/local/database/entity/TransactionEntity.kt",
-              '    val note: String = "",\n    val createdAt: Long = System.currentTimeMillis()\n',
-              '    val note: String = "",\n    val upiSmsId: String? = null,\n    val createdAt: Long = System.currentTimeMillis()\n',
-              "TransactionEntity upiSmsId"
-          )
-
-          changed |= replace(
-              "app/src/main/java/com/example/data/local/database/AppDatabase.kt",
-              '@Database(entities = [CategoryEntity::class, TransactionEntity::class, BudgetEntity::class, AppSettingEntity::class, RegisteredUpiEntity::class], version = 2, exportSchema = false)',
-              '@Database(entities = [CategoryEntity::class, TransactionEntity::class, BudgetEntity::class, AppSettingEntity::class, RegisteredUpiEntity::class], version = 3, exportSchema = false)',
-              "database version"
-          )
-          changed |= replace(
-              "app/src/main/java/com/example/data/local/database/AppDatabase.kt",
-              '        private val MIGRATION_1_2 = object : Migration(1, 2) {',
-              '        private val MIGRATION_1_2 = object : Migration(1, 2) {',
-              "migration anchor"
-          ) if False else False
-          changed |= replace(
-              "app/src/main/java/com/example/data/local/database/AppDatabase.kt",
-              '        fun getInstance(context: Context): AppDatabase = INSTANCE ?: synchronized(this) {\n            Room.databaseBuilder(context.applicationContext, AppDatabase::class.java, "expense_tracker.db")\n                .addMigrations(MIGRATION_1_2)',
-              '        private val MIGRATION_2_3 = object : Migration(2, 3) {\n            override fun migrate(db: SupportSQLiteDatabase) {\n                db.execSQL("ALTER TABLE transactions ADD COLUMN upiSmsId TEXT")\n            }\n        }\n\n        fun getInstance(context: Context): AppDatabase = INSTANCE ?: synchronized(this) {\n            Room.databaseBuilder(context.applicationContext, AppDatabase::class.java, "expense_tracker.db")\n                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)',
-              "database migration"
-          )
-
-          changed |= replace(
-              "app/src/main/java/com/example/viewmodel/ExpenseViewModel.kt",
-              '        date: Long,\n        note: String = "",\n        onComplete: () -> Unit\n',
-              '        date: Long,\n        note: String = "",\n        upiSmsId: String? = null,\n        onComplete: () -> Unit\n',
-              "saveTransaction upiSmsId parameter"
-          )
-          changed |= replace(
-              "app/src/main/java/com/example/viewmodel/ExpenseViewModel.kt",
-              '                date = date,\n                note = note.trim(),\n                createdAt = if (id == 0L) System.currentTimeMillis() else date\n',
-              '                date = date,\n                note = note.trim(),\n                upiSmsId = upiSmsId?.trim()?.takeIf { it.isNotEmpty() },\n                createdAt = if (id == 0L) System.currentTimeMillis() else date\n',
-              "saveTransaction entity field"
-          )
-
-          changed |= replace(
-              "app/src/main/java/com/example/data/repository/ExpenseRepository.kt",
-              '        "date" to tx.date, "note" to tx.note, "createdAt" to tx.createdAt\n',
-              '        "date" to tx.date, "note" to tx.note, "upiSmsId" to (tx.upiSmsId ?: ""), "createdAt" to tx.createdAt\n',
-              "cloud transaction map"
-          )
-          changed |= replace(
-              "app/src/main/java/com/example/data/repository/ExpenseRepository.kt",
-              'categoryColorHex = doc.getString("categoryColorHex") ?: "", date = doc.getLong("date") ?: 0L, note = doc.getString("note") ?: "", createdAt = doc.getLong("createdAt") ?: System.currentTimeMillis())',
-              'categoryColorHex = doc.getString("categoryColorHex") ?: "", date = doc.getLong("date") ?: 0L, note = doc.getString("note") ?: "", upiSmsId = doc.getString("upiSmsId")?.takeIf { it.isNotBlank() }, createdAt = doc.getLong("createdAt") ?: System.currentTimeMillis())',
-              "cloud transaction restore"
-          )
-
-          changed |= replace(
-              "app/src/main/java/com/example/ui/upi/UPITransactionsScreen.kt",
-              'viewModel.saveTransaction("EXPENSE", paise, category, sms.date, "[UPI_SMS_ID:${sms.id}] ${sms.recipient} • ${tag.tagName}") {',
-              'viewModel.saveTransaction(\n                    id = 0L,\n                    type = "EXPENSE",\n                    amountInPaise = paise,\n                    category = category,\n                    date = sms.date,\n                    note = "${sms.recipient} • ${tag.tagName}",\n                    upiSmsId = sms.id\n                ) {',
-              "UPI save call"
-          )
-          changed |= replace(
-              "app/src/main/java/com/example/ui/upi/UPITransactionsScreen.kt",
-              '    val marker = "[UPI_SMS_ID:${sms.id}]"\n    if (transactions.any { it.type.equals("EXPENSE", true) && it.note.contains(marker) }) return true\n',
-              '    if (transactions.any { it.type.equals("EXPENSE", true) && it.upiSmsId == sms.id }) return true\n',
-              "UPI duplicate marker"
-          )
-
-          if changed:
-              print("UPI SMS ID migration applied")
-          else:
-              print("UPI SMS ID migration already applied")
+          for old, new in replacements:
+              if old in s:
+                  s = s.replace(old, new, 1)
+                  changed = True
+          p.write_text(s)
+          print("UI changes applied:" , changed)
           PY
 
           git diff --check
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           if ! git diff --quiet; then
-            git add app/src/main/java/com/example/data/local/database/entity/TransactionEntity.kt \
-              app/src/main/java/com/example/data/local/database/AppDatabase.kt \
-              app/src/main/java/com/example/viewmodel/ExpenseViewModel.kt \
-              app/src/main/java/com/example/data/repository/ExpenseRepository.kt \
-              app/src/main/java/com/example/ui/upi/UPITransactionsScreen.kt
-            git commit -m "Store UPI SMS ID separately from transaction note [skip ci]"
+            git add app/src/main/java/com/example/ui/upi/UPITransactionsScreen.kt
+            git commit -m "Refine UPI Transactions UI only [skip ci]"
             git push
           fi
 
