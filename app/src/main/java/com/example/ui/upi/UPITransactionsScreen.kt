@@ -191,7 +191,7 @@ fun UPITransactionsScreen(viewModel: ExpenseViewModel) {
                             Spacer(Modifier.height(9.dp))
                             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                                 Column(Modifier.weight(1f)) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) { Icon(if (sms.isCredit) Icons.Default.ArrowCircleDown else Icons.Default.ArrowCircleUp, null, tint = if (sms.isCredit) Color(0xFF2E7D32) else ExpenseRed, modifier = Modifier.size(16.dp)); Spacer(Modifier.width(7.dp)); Text(if (sms.isCredit) "Credited ${sms.amount ?: "—"}" else "Sent ${sms.amount ?: "—"}", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Medium, color = if (sms.isCredit) Color(0xFF2E7D32) else ExpenseRed) }
+                                    Row(verticalAlignment = Alignment.CenterVertically) { Icon(if (sms.isCredit) Icons.Default.ArrowCircleDown else Icons.Default.ArrowCircleUp, null, tint = if (sms.isCredit) Color(0xFF2E7D32) else ExpenseRed, modifier = Modifier.size(16.dp)); Spacer(Modifier.width(7.dp)); Text(if (sms.isCredit) "Credited ${sms.amount ?: "—"}" else "Sent ${sms.amount ?: "—"}", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold, color = if (sms.isCredit) Color(0xFF2E7D32) else ExpenseRed) }
                                     Spacer(Modifier.height(7.dp))
                                     Row(verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Default.AccountBalance, null, tint = green, modifier = Modifier.size(16.dp)); Spacer(Modifier.width(7.dp)); Text("From HDFC Bank A/C *2668", style = MaterialTheme.typography.bodySmall, maxLines = 1) }
                                 }
