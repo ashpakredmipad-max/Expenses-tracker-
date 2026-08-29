@@ -25,7 +25,7 @@ jobs:
           p = Path("app/src/main/java/com/example/ui/upi/UPITransactionsScreen.kt")
           s = p.read_text()
 
-          # Store direction as data derived from the SMS body. No transaction/save logic is changed.
+          # Keep the direction derived from the SMS body. No save/duplicate logic is changed.
           old = 'private data class UpiSms(val id: String, val sender: String, val body: String, val date: Long, val amount: String?, val recipient: String)'
           new = 'private data class UpiSms(val id: String, val sender: String, val body: String, val date: Long, val amount: String?, val recipient: String, val isCredit: Boolean)'
           if old in s:
@@ -52,21 +52,31 @@ jobs:
                   raise SystemExit("Recipient parser marker not found; refusing to modify source.")
               s = s.replace(marker, helper + marker, 1)
 
-          # Amount: green for credits, red for sent/debits.
+          # Credit messages: green amount + green down arrow/label + light green card.
+          # Sent/debit messages: red amount + red up arrow/label + light red card.
+          old = 'Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), elevation = CardDefaults.cardElevation(defaultElevation = 2.dp))'
+          new = 'Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = if (sms.isCredit) Color(0xFFE8F5E9) else Color(0xFFFFEBEE)), elevation = CardDefaults.cardElevation(defaultElevation = 2.dp))'
+          if old in s:
+              s = s.replace(old, new, 1)
+          elif 'containerColor = if (sms.isCredit)' not in s:
+              raise SystemExit("UPI transaction card UI line not found; refusing to modify source.")
+
+          old = 'Box(Modifier.size(46.dp).clip(CircleShape).background(softGreen), contentAlignment = Alignment.Center) { Icon(Icons.Default.Sms, null, tint = green, modifier = Modifier.size(23.dp)) }'
+          new = 'Box(Modifier.size(46.dp).clip(CircleShape).background(if (sms.isCredit) Color(0xFFC8E6C9) else Color(0xFFFFCDD2)), contentAlignment = Alignment.Center) { Icon(Icons.Default.Sms, null, tint = if (sms.isCredit) Color(0xFF2E7D32) else ExpenseRed, modifier = Modifier.size(23.dp)) }'
+          if old in s:
+              s = s.replace(old, new, 1)
+          elif 'background(if (sms.isCredit)' not in s:
+              raise SystemExit("UPI message icon UI line not found; refusing to modify source.")
+
           old = 'sms.amount?.let { Text(it, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = green) }'
           new = 'sms.amount?.let { Text(it, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = if (sms.isCredit) Color(0xFF2E7D32) else ExpenseRed) }'
           if old in s:
               s = s.replace(old, new, 1)
-          elif 'color = if (sms.isCredit)' not in s:
-              raise SystemExit("Amount UI line not found; refusing to modify source.")
 
-          # Arrow and direction label: down/green for credit, up/red for sent/debit.
           old = 'Row(verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Default.ArrowCircleUp, null, tint = green, modifier = Modifier.size(16.dp)); Spacer(Modifier.width(7.dp)); Text("Sent ${sms.amount ?: "—"}", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Medium) }'
           new = 'Row(verticalAlignment = Alignment.CenterVertically) { Icon(if (sms.isCredit) Icons.Default.ArrowCircleDown else Icons.Default.ArrowCircleUp, null, tint = if (sms.isCredit) Color(0xFF2E7D32) else ExpenseRed, modifier = Modifier.size(16.dp)); Spacer(Modifier.width(7.dp)); Text(if (sms.isCredit) "Credited ${sms.amount ?: "—"}" else "Sent ${sms.amount ?: "—"}", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Medium, color = if (sms.isCredit) Color(0xFF2E7D32) else ExpenseRed) }'
           if old in s:
               s = s.replace(old, new, 1)
-          elif 'if (sms.isCredit) Icons.Default.ArrowCircleDown' not in s:
-              raise SystemExit("Direction UI line not found; refusing to modify source.")
 
           p.write_text(s)
           PY
@@ -76,7 +86,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           if ! git diff --quiet -- app/src/main/java/com/example/ui/upi/UPITransactionsScreen.kt; then
             git add app/src/main/java/com/example/ui/upi/UPITransactionsScreen.kt
-            git commit -m "Show UPI credits green and debits red [skip ci]"
+            git commit -m "Color UPI credit messages green and sent messages red [skip ci]"
             git push
           fi
 
