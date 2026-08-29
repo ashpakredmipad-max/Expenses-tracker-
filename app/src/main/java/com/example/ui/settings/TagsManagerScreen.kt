@@ -13,7 +13,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.utils.CategoryIconHelper
@@ -31,6 +30,7 @@ private data class ManagedTag(
     val categoryName: String?
 )
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TagsManagerScreen(onBack: () -> Unit) {
     val scope = rememberCoroutineScope()
@@ -86,7 +86,7 @@ fun TagsManagerScreen(onBack: () -> Unit) {
             }
             tags.isEmpty() -> Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Box(Modifier.size(64.dp).clip(CircleShape).then(Modifier), contentAlignment = Alignment.Center) {
+                    Box(Modifier.size(64.dp).clip(CircleShape), contentAlignment = Alignment.Center) {
                         Icon(Icons.Default.Label, null, modifier = Modifier.size(44.dp), tint = MaterialTheme.colorScheme.primary)
                     }
                     Spacer(Modifier.height(12.dp))
@@ -110,15 +110,8 @@ fun TagsManagerScreen(onBack: () -> Unit) {
                             modifier = Modifier.fillMaxWidth().padding(16.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Box(
-                                Modifier.size(48.dp).clip(CircleShape).then(Modifier),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Surface(
-                                    modifier = Modifier.fillMaxSize(),
-                                    shape = CircleShape,
-                                    color = tagColor.copy(alpha = 0.14f)
-                                ) {}
+                            Box(Modifier.size(48.dp).clip(CircleShape), contentAlignment = Alignment.Center) {
+                                Surface(modifier = Modifier.fillMaxSize(), shape = CircleShape, color = tagColor.copy(alpha = 0.14f)) {}
                                 Icon(CategoryIconHelper.getIcon(tag.iconName), tag.name, tint = tagColor, modifier = Modifier.size(24.dp))
                             }
                             Spacer(Modifier.width(12.dp))
