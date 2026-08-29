@@ -44,7 +44,7 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
 
-private data class UpiSms(val id: String, val sender: String, val body: String, val date: Long, val amount: String?, val recipient: String)
+private data class UpiSms(val id: String, val sender: String, val body: String, val date: Long, val amount: String?, val recipient: String, val isCredit: Boolean)
 private data class UpiTag(val id: String, val tagName: String, val iconName: String, val colorHex: String, val recipient: String, val categoryId: Long?, val categoryName: String?)
 
 @Composable
@@ -184,14 +184,14 @@ fun UPITransactionsScreen(viewModel: ExpenseViewModel) {
                                     Text(sms.recipient, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, maxLines = 1)
                                     Text(SimpleDateFormat("dd MMM yyyy • hh:mm a", Locale.getDefault()).format(sms.date), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 2.dp))
                                 }
-                                sms.amount?.let { Text(it, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = green) }
+                                sms.amount?.let { Text(it, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = if (sms.isCredit) Color(0xFF2E7D32) else ExpenseRed) }
                             }
                             Spacer(Modifier.height(10.dp))
                             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f))
                             Spacer(Modifier.height(9.dp))
                             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                                 Column(Modifier.weight(1f)) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Default.ArrowCircleUp, null, tint = green, modifier = Modifier.size(16.dp)); Spacer(Modifier.width(7.dp)); Text("Sent ${sms.amount ?: "—"}", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Medium) }
+                                    Row(verticalAlignment = Alignment.CenterVertically) { Icon(if (sms.isCredit) Icons.Default.ArrowCircleDown else Icons.Default.ArrowCircleUp, null, tint = if (sms.isCredit) Color(0xFF2E7D32) else ExpenseRed, modifier = Modifier.size(16.dp)); Spacer(Modifier.width(7.dp)); Text(if (sms.isCredit) "Credited ${sms.amount ?: "—"}" else "Sent ${sms.amount ?: "—"}", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Medium, color = if (sms.isCredit) Color(0xFF2E7D32) else ExpenseRed) }
                                     Spacer(Modifier.height(7.dp))
                                     Row(verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Default.AccountBalance, null, tint = green, modifier = Modifier.size(16.dp)); Spacer(Modifier.width(7.dp)); Text("From HDFC Bank A/C *2668", style = MaterialTheme.typography.bodySmall, maxLines = 1) }
                                 }
@@ -288,10 +288,15 @@ private fun readUpiSms(context: Context): List<UpiSms> {
         while (cursor.moveToNext()) {
             val body = cursor.getString(bodyIndex) ?: continue
             val amount = Regex("(?:Rs\\.?|INR|₹)\\s*([0-9,]+(?:\\.[0-9]{1,2})?)", RegexOption.IGNORE_CASE).find(body)?.groupValues?.getOrNull(1)?.let { "₹$it" }
-            result += UpiSms(cursor.getString(idIndex), cursor.getString(addressIndex) ?: "Unknown", body, cursor.getLong(dateIndex), amount, extractRecipient(body))
+            result += UpiSms(cursor.getString(idIndex), cursor.getString(addressIndex) ?: "Unknown", body, cursor.getLong(dateIndex), amount, extractRecipient(body), isCredit = isCreditSms(body))
         }
     }
     return result
+}
+
+private fun isCreditSms(body: String): Boolean {
+    return Regex("(?i)\b(?:credited|credit|received|received from|deposited)\b").containsMatchIn(body) &&
+        !Regex("(?i)\b(?:debited|debit|sent|paid)\b").containsMatchIn(body)
 }
 
 private fun extractRecipient(body: String): String {
