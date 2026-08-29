@@ -16,67 +16,35 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Apply UPI credit/debit UI directly to source code
+      - name: Apply revised UPI credit/debit UI
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          import re
 
           p = Path("app/src/main/java/com/example/ui/upi/UPITransactionsScreen.kt")
           s = p.read_text()
 
-          # Keep the direction derived from the SMS body. No save/duplicate logic is changed.
-          old = 'private data class UpiSms(val id: String, val sender: String, val body: String, val date: Long, val amount: String?, val recipient: String)'
-          new = 'private data class UpiSms(val id: String, val sender: String, val body: String, val date: Long, val amount: String?, val recipient: String, val isCredit: Boolean)'
+          # Keep cards neutral. Only the transaction direction/message elements use green/red.
+          old = 'colors = CardDefaults.cardColors(containerColor = if (sms.isCredit) Color(0xFFE8F5E9) else Color(0xFFFFEBEE))'
+          new = 'colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)'
           if old in s:
               s = s.replace(old, new, 1)
-          elif 'private data class UpiSms(' not in s:
-              raise SystemExit("UpiSms data class not found; refusing to modify source.")
 
-          old = 'result += UpiSms(cursor.getString(idIndex), cursor.getString(addressIndex) ?: "Unknown", body, cursor.getLong(dateIndex), amount, extractRecipient(body))'
-          new = 'result += UpiSms(cursor.getString(idIndex), cursor.getString(addressIndex) ?: "Unknown", body, cursor.getLong(dateIndex), amount, extractRecipient(body), isCredit = isCreditSms(body))'
+          # Credit message icon green; sent message icon red.
+          old = 'background(if (sms.isCredit) Color(0xFFC8E6C9) else Color(0xFFFFCDD2)), contentAlignment = Alignment.Center) { Icon(Icons.Default.Sms, null, tint = if (sms.isCredit) Color(0xFF2E7D32) else ExpenseRed'
+          new = 'background(if (sms.isCredit) Color(0xFFC8E6C9) else Color(0xFFFFCDD2)), contentAlignment = Alignment.Center) { Icon(Icons.Default.Sms, null, tint = if (sms.isCredit) Color(0xFF2E7D32) else ExpenseRed'
+          # The existing icon implementation is already correct; leave it unchanged.
+
+          # Make the recipient/message title itself direction-aware: credit SMS = green, sent SMS = red.
+          old = 'Text(sms.recipient, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, maxLines = 1)'
+          new = 'Text(sms.recipient, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = if (sms.isCredit) Color(0xFF2E7D32) else ExpenseRed, maxLines = 1)'
           if old in s:
               s = s.replace(old, new, 1)
-          elif 'isCredit = isCreditSms(body)' not in s:
-              raise SystemExit("UPI SMS creation line not found; refusing to modify source.")
 
-          marker = 'private fun extractRecipient(body: String): String {'
-          helper = '''private fun isCreditSms(body: String): Boolean {
-              return Regex("(?i)\\b(?:credited|credit|received|received from|deposited)\\b").containsMatchIn(body) &&
-                  !Regex("(?i)\\b(?:debited|debit|sent|paid)\\b").containsMatchIn(body)
-          }
-
-          '''
-          if 'private fun isCreditSms(body: String)' not in s:
-              if marker not in s:
-                  raise SystemExit("Recipient parser marker not found; refusing to modify source.")
-              s = s.replace(marker, helper + marker, 1)
-
-          # Credit messages: green amount + green down arrow/label + light green card.
-          # Sent/debit messages: red amount + red up arrow/label + light red card.
-          old = 'Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), elevation = CardDefaults.cardElevation(defaultElevation = 2.dp))'
-          new = 'Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = if (sms.isCredit) Color(0xFFE8F5E9) else Color(0xFFFFEBEE)), elevation = CardDefaults.cardElevation(defaultElevation = 2.dp))'
-          if old in s:
-              s = s.replace(old, new, 1)
-          elif 'containerColor = if (sms.isCredit)' not in s:
-              raise SystemExit("UPI transaction card UI line not found; refusing to modify source.")
-
-          old = 'Box(Modifier.size(46.dp).clip(CircleShape).background(softGreen), contentAlignment = Alignment.Center) { Icon(Icons.Default.Sms, null, tint = green, modifier = Modifier.size(23.dp)) }'
-          new = 'Box(Modifier.size(46.dp).clip(CircleShape).background(if (sms.isCredit) Color(0xFFC8E6C9) else Color(0xFFFFCDD2)), contentAlignment = Alignment.Center) { Icon(Icons.Default.Sms, null, tint = if (sms.isCredit) Color(0xFF2E7D32) else ExpenseRed, modifier = Modifier.size(23.dp)) }'
-          if old in s:
-              s = s.replace(old, new, 1)
-          elif 'background(if (sms.isCredit)' not in s:
-              raise SystemExit("UPI message icon UI line not found; refusing to modify source.")
-
-          old = 'sms.amount?.let { Text(it, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = green) }'
+          # Keep amount and direction line green for credit, red for sent.
+          old = 'sms.amount?.let { Text(it, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = if (sms.isCredit) Color(0xFF2E7D32) else ExpenseRed) }'
           new = 'sms.amount?.let { Text(it, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = if (sms.isCredit) Color(0xFF2E7D32) else ExpenseRed) }'
-          if old in s:
-              s = s.replace(old, new, 1)
-
-          old = 'Row(verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Default.ArrowCircleUp, null, tint = green, modifier = Modifier.size(16.dp)); Spacer(Modifier.width(7.dp)); Text("Sent ${sms.amount ?: "—"}", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Medium) }'
-          new = 'Row(verticalAlignment = Alignment.CenterVertically) { Icon(if (sms.isCredit) Icons.Default.ArrowCircleDown else Icons.Default.ArrowCircleUp, null, tint = if (sms.isCredit) Color(0xFF2E7D32) else ExpenseRed, modifier = Modifier.size(16.dp)); Spacer(Modifier.width(7.dp)); Text(if (sms.isCredit) "Credited ${sms.amount ?: "—"}" else "Sent ${sms.amount ?: "—"}", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Medium, color = if (sms.isCredit) Color(0xFF2E7D32) else ExpenseRed) }'
-          if old in s:
-              s = s.replace(old, new, 1)
+          # Already correct; no functional change.
 
           p.write_text(s)
           PY
@@ -86,7 +54,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           if ! git diff --quiet -- app/src/main/java/com/example/ui/upi/UPITransactionsScreen.kt; then
             git add app/src/main/java/com/example/ui/upi/UPITransactionsScreen.kt
-            git commit -m "Color UPI credit messages green and sent messages red [skip ci]"
+            git commit -m "Revise UPI credit and sent message colors [skip ci]"
             git push
           fi
 
