@@ -51,6 +51,7 @@ import com.example.ui.categories.CategoriesScreen
 import com.example.ui.dashboard.DashboardScreen
 import com.example.ui.reports.ReportsScreen
 import com.example.ui.settings.SettingsScreen
+import com.example.ui.settings.TagsManagerScreen
 import com.example.ui.transactions.AddEditTransactionScreen
 import com.example.ui.transactions.TransactionsHistoryScreen
 import com.example.ui.upi.UPITransactionsScreen
@@ -75,16 +76,17 @@ fun ExpenseApp(viewModel: ExpenseViewModel, navController: NavHostController = r
     val currentScreen = bottomNavScreens.firstOrNull { it.route == currentRoute } ?: Screen.Dashboard
     val isBottomBarVisible = bottomNavScreens.any { it.route == currentRoute }
     val isUpiScreen = currentRoute == "upi_transactions"
+    val isTagsManagerScreen = currentRoute == "manage_tags"
     var menuExpanded by remember { mutableStateOf(false) }
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         topBar = {
-            if (isBottomBarVisible || isUpiScreen) {
+            if (isBottomBarVisible || isUpiScreen || isTagsManagerScreen) {
                 TopAppBar(
-                    title = { Text(text = if (isUpiScreen) "UPI Transactions" else currentScreen.title, style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold, fontSize = 22.sp, letterSpacing = 0.5.sp)) },
+                    title = { Text(text = when { isUpiScreen -> "UPI Transactions"; isTagsManagerScreen -> "Manage Tags"; else -> currentScreen.title }, style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold, fontSize = 22.sp, letterSpacing = 0.5.sp)) },
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent, scrolledContainerColor = Color.Transparent),
-                    navigationIcon = { if (isUpiScreen) IconButton(onClick = { navController.popBackStack() }) { Text("‹", fontSize = 36.sp) } },
+                    navigationIcon = { if (isUpiScreen || isTagsManagerScreen) IconButton(onClick = { navController.popBackStack() }) { Text("‹", fontSize = 36.sp) } },
                     actions = {
                         if (isBottomBarVisible) {
                             IconButton(onClick = { navController.navigate("upi_transactions") }) { Text("@", fontSize = 22.sp) }
@@ -109,8 +111,9 @@ fun ExpenseApp(viewModel: ExpenseViewModel, navController: NavHostController = r
             composable(Screen.Transactions.route) { TransactionsHistoryScreen(viewModel, { navController.navigate("add_transaction") }, { id -> navController.navigate("edit_transaction/$id") }) }
             composable(Screen.Calendar.route) { CalendarScreen(viewModel) }
             composable(Screen.Reports.route) { ReportsScreen(viewModel, { navController.navigate("add_transaction") }) }
-            composable(Screen.Settings.route) { SettingsScreen(viewModel, { navController.navigate("categories") }, { navController.navigate("budget") }, { navController.navigate("upi_transactions") }) }
+            composable(Screen.Settings.route) { SettingsScreen(viewModel, { navController.navigate("categories") }, { navController.navigate("budget") }, { navController.navigate("manage_tags") }) }
             composable("upi_transactions") { UPITransactionsScreen(viewModel) }
+            composable("manage_tags") { TagsManagerScreen { navController.popBackStack() } }
             composable("add_transaction") { AddEditTransactionScreen(viewModel, 0L, { navController.popBackStack() }, { navController.navigate("categories") }) }
             composable("edit_transaction/{transactionId}", arguments = listOf(navArgument("transactionId") { type = NavType.LongType })) { entry -> AddEditTransactionScreen(viewModel, entry.arguments?.getLong("transactionId") ?: 0L, { navController.popBackStack() }, { navController.navigate("categories") }) }
             composable("categories") { CategoriesScreen(viewModel, { navController.popBackStack() }) }
