@@ -178,10 +178,10 @@ fun UPITransactionsScreen(viewModel: ExpenseViewModel) {
                     Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)) {
                         Column(Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Box(Modifier.size(46.dp).clip(CircleShape).background(if (sms.isCredit) Color(0xFFC8E6C9) else Color(0xFFFFCDD2)), contentAlignment = Alignment.Center) { Icon(Icons.Default.Sms, null, tint = if (sms.isCredit) Color(0xFF2E7D32) else ExpenseRed, modifier = Modifier.size(23.dp)) }
+                                Box(Modifier.size(46.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer), contentAlignment = Alignment.Center) { Icon(Icons.Default.Sms, null, tint = green, modifier = Modifier.size(23.dp)) }
                                 Spacer(Modifier.width(12.dp))
                                 Column(Modifier.weight(1f)) {
-                                    Text(sms.recipient, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = if (sms.isCredit) Color(0xFF2E7D32) else ExpenseRed, maxLines = 1)
+                                    Text(sms.recipient, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface, maxLines = 1)
                                     Text(SimpleDateFormat("dd MMM yyyy • hh:mm a", Locale.getDefault()).format(sms.date), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 2.dp))
                                 }
                                 sms.amount?.let { Text(it, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = if (sms.isCredit) Color(0xFF2E7D32) else ExpenseRed) }
@@ -213,7 +213,7 @@ fun UPITransactionsScreen(viewModel: ExpenseViewModel) {
                             if (alreadyAdded) {
                                 Surface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(11.dp), color = softGreen) {
                                     Row(Modifier.padding(horizontal = 12.dp, vertical = 9.dp), verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(Icons.Default.CheckCircle, null, tint = green, modifier = Modifier.size(19.dp)); Spacer(Modifier.width(7.dp)); Text("Already Added", color = green, fontWeight = FontWeight.Bold)
+                                        Icon(Icons.Default.CheckCircle, null, tint = green, modifier = Modifier.size(19.dp)); Spacer(Modifier.width(7.dp)); Text("Added", color = green, fontWeight = FontWeight.Bold)
                                     }
                                 }
                             } else {
@@ -295,8 +295,9 @@ private fun readUpiSms(context: Context): List<UpiSms> {
 }
 
 private fun isCreditSms(body: String): Boolean {
-    return Regex("(?i)\b(?:credited|credit|received|received from|deposited)\b").containsMatchIn(body) &&
-        !Regex("(?i)\b(?:debited|debit|sent|paid)\b").containsMatchIn(body)
+    val hasCredit = body.contains("credit", ignoreCase = true)
+    val hasSent = body.contains("sent", ignoreCase = true)
+    return hasCredit && !hasSent
 }
 
 private fun extractRecipient(body: String): String {
