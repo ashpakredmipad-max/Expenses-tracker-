@@ -113,36 +113,6 @@ fun UPITransactionsScreen(viewModel: ExpenseViewModel) {
     val softGreen = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.72f)
 
     Column(modifier = Modifier.fillMaxSize().background(pageBg)) {
-        Surface(color = pageBg, tonalElevation = 0.dp) {
-            Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp)) {
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text("UPI Transactions", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                        Text("Manage your UPI messages & tags", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                    IconButton(onClick = { }) { Icon(Icons.Default.FilterList, "Filter", modifier = Modifier.size(22.dp)) }
-                }
-                Spacer(Modifier.height(8.dp))
-                Surface(shape = RoundedCornerShape(18.dp), color = MaterialTheme.colorScheme.surface, tonalElevation = 1.dp) {
-                    Row(Modifier.fillMaxWidth().padding(3.dp)) {
-                        listOf(Icons.Default.ChatBubbleOutline to "Messages", Icons.Default.LocalOffer to "Tags").forEachIndexed { index, item ->
-                            val selected = selectedTab == index
-                            Surface(
-                                modifier = Modifier.weight(1f).clip(RoundedCornerShape(15.dp)).clickable { selectedTab = index },
-                                color = if (selected) green else Color.Transparent,
-                                shape = RoundedCornerShape(15.dp)
-                            ) {
-                                Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(item.first, null, modifier = Modifier.size(18.dp), tint = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant)
-                                    Spacer(Modifier.width(7.dp))
-                                    Text(item.second, color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.SemiBold)
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
 
         if (selectedTab == 1) {
             if (upiTags.isEmpty()) Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
