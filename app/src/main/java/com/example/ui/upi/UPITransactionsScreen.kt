@@ -114,7 +114,7 @@ fun UPITransactionsScreen(viewModel: ExpenseViewModel) {
 
     Column(modifier = Modifier.fillMaxSize().background(pageBg)) {
         Surface(color = pageBg, tonalElevation = 0.dp) {
-            Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
+            Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp)) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text("UPI Transactions", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
