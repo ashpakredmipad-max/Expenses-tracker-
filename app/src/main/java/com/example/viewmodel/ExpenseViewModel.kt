@@ -249,6 +249,7 @@ class ExpenseViewModel(
         category: CategoryEntity,
         date: Long,
         note: String = "",
+        upiSmsId: String? = null,
         onComplete: () -> Unit
     ) {
         viewModelScope.launch {
@@ -262,6 +263,7 @@ class ExpenseViewModel(
                 categoryColorHex = category.colorHex,
                 date = date,
                 note = note.trim(),
+                upiSmsId = upiSmsId?.trim()?.takeIf { it.isNotEmpty() },
                 createdAt = if (id == 0L) System.currentTimeMillis() else date
             )
             if (id == 0L) {

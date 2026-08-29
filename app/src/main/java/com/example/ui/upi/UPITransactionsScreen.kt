@@ -213,7 +213,15 @@ fun UPITransactionsScreen(viewModel: ExpenseViewModel) {
             if (paise == null || paise <= 0) { message = "Invalid transaction amount"; return@UpiWalletSelectionDialog }
             savingTransaction = true
             scope.launch {
-                viewModel.saveTransaction("EXPENSE", paise, category, sms.date, "[UPI_SMS_ID:${sms.id}] ${sms.recipient} • ${tag.tagName}") {
+                viewModel.saveTransaction(
+                    id = 0L,
+                    type = "EXPENSE",
+                    amountInPaise = paise,
+                    category = category,
+                    date = sms.date,
+                    note = "${sms.recipient} • ${tag.tagName}",
+                    upiSmsId = sms.id
+                ) {
                     WalletBalanceManager.applyTransaction(wallet.id, "EXPENSE", paise, {
                         savingTransaction = false; showWalletDialog = false; selectedSms = null; selectedTagForTransaction = null; message = "Transaction added to ${wallet.name}"
                     })
@@ -230,8 +238,7 @@ private fun isSameMonth(timestamp: Long, selected: Calendar): Boolean {
 
 private fun isAlreadyAdded(sms: UpiSms, transactions: List<com.example.data.local.database.entity.TransactionEntity>): Boolean {
     val amount = sms.amount?.let(::parseDisplayAmountToPaise) ?: return false
-    val marker = "[UPI_SMS_ID:${sms.id}]"
-    if (transactions.any { it.type.equals("EXPENSE", true) && it.note.contains(marker) }) return true
+    if (transactions.any { it.type.equals("EXPENSE", true) && it.upiSmsId == sms.id }) return true
     val smsDay = Calendar.getInstance().apply { timeInMillis = sms.date }
     return transactions.any {
         if (!it.type.equals("EXPENSE", true) || it.amountInPaise != amount || !it.note.contains(sms.recipient, true)) return@any false

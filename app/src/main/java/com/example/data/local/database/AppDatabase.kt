@@ -20,7 +20,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
-@Database(entities = [CategoryEntity::class, TransactionEntity::class, BudgetEntity::class, AppSettingEntity::class, RegisteredUpiEntity::class], version = 2, exportSchema = false)
+@Database(entities = [CategoryEntity::class, TransactionEntity::class, BudgetEntity::class, AppSettingEntity::class, RegisteredUpiEntity::class], version = 3, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun categoryDao(): CategoryDao
     abstract fun transactionDao(): TransactionDao
@@ -36,9 +36,15 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE transactions ADD COLUMN upiSmsId TEXT")
+            }
+        }
+
         fun getInstance(context: Context): AppDatabase = INSTANCE ?: synchronized(this) {
             Room.databaseBuilder(context.applicationContext, AppDatabase::class.java, "expense_tracker.db")
-                .addMigrations(MIGRATION_1_2)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                 .addCallback(DatabaseCallback())
                 .build().also { INSTANCE = it }
         }

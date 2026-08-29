@@ -23,5 +23,6 @@ data class TransactionEntity(
     val categoryColorHex: String,
     val date: Long, // Epoch timestamp in milliseconds
     val note: String = "",
+    val upiSmsId: String? = null,
     val createdAt: Long = System.currentTimeMillis()
 )

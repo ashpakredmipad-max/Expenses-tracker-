@@ -76,7 +76,7 @@ class ExpenseRepository(private val database: AppDatabase) {
         "id" to tx.id, "type" to tx.type, "amountInPaise" to tx.amountInPaise,
         "categoryId" to tx.categoryId, "categoryName" to tx.categoryName,
         "categoryIcon" to tx.categoryIcon, "categoryColorHex" to tx.categoryColorHex,
-        "date" to tx.date, "note" to tx.note, "createdAt" to tx.createdAt
+        "date" to tx.date, "note" to tx.note, "upiSmsId" to (tx.upiSmsId ?: ""), "createdAt" to tx.createdAt
     )
     private fun saveTransactionToCloud(uid: String, tx: TransactionEntity) { transactionsCollection(uid).document(tx.id.toString()).set(transactionMap(tx)) }
     private fun deleteTransactionFromCloud(uid: String, id: Long) { transactionsCollection(uid).document(id.toString()).delete() }
@@ -84,7 +84,7 @@ class ExpenseRepository(private val database: AppDatabase) {
     suspend fun syncTransactionsForUser(uid: String) = withContext(Dispatchers.IO) {
         val snapshot = Tasks.await(transactionsCollection(uid).get())
         val cloudTransactions = snapshot.documents.mapNotNull { doc ->
-            try { TransactionEntity(id = doc.getLong("id") ?: doc.id.toLong(), type = doc.getString("type") ?: return@mapNotNull null, amountInPaise = doc.getLong("amountInPaise") ?: 0L, categoryId = doc.getLong("categoryId") ?: 0L, categoryName = doc.getString("categoryName") ?: "", categoryIcon = doc.getString("categoryIcon") ?: "", categoryColorHex = doc.getString("categoryColorHex") ?: "", date = doc.getLong("date") ?: 0L, note = doc.getString("note") ?: "", createdAt = doc.getLong("createdAt") ?: System.currentTimeMillis()) } catch (_: Exception) { null }
+            try { TransactionEntity(id = doc.getLong("id") ?: doc.id.toLong(), type = doc.getString("type") ?: return@mapNotNull null, amountInPaise = doc.getLong("amountInPaise") ?: 0L, categoryId = doc.getLong("categoryId") ?: 0L, categoryName = doc.getString("categoryName") ?: "", categoryIcon = doc.getString("categoryIcon") ?: "", categoryColorHex = doc.getString("categoryColorHex") ?: "", date = doc.getLong("date") ?: 0L, note = doc.getString("note") ?: "", upiSmsId = doc.getString("upiSmsId")?.takeIf { it.isNotBlank() }, createdAt = doc.getLong("createdAt") ?: System.currentTimeMillis()) } catch (_: Exception) { null }
         }
         transactionDao.deleteAllTransactions()
         if (cloudTransactions.isNotEmpty()) transactionDao.insertAll(cloudTransactions)
