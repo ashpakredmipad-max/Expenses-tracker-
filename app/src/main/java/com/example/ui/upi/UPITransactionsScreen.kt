@@ -175,13 +175,13 @@ fun UPITransactionsScreen(viewModel: ExpenseViewModel) {
                 items(monthSms, key = { it.id }) { sms ->
                     val matchingTag = upiTags.firstOrNull { tagsMatch(it.recipient, sms.recipient) }
                     val alreadyAdded = isAlreadyAdded(sms, allTransactions)
-                    Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = if (sms.isCredit) Color(0xFFE8F5E9) else Color(0xFFFFEBEE)), elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)) {
+                    Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)) {
                         Column(Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Box(Modifier.size(46.dp).clip(CircleShape).background(if (sms.isCredit) Color(0xFFC8E6C9) else Color(0xFFFFCDD2)), contentAlignment = Alignment.Center) { Icon(Icons.Default.Sms, null, tint = if (sms.isCredit) Color(0xFF2E7D32) else ExpenseRed, modifier = Modifier.size(23.dp)) }
                                 Spacer(Modifier.width(12.dp))
                                 Column(Modifier.weight(1f)) {
-                                    Text(sms.recipient, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, maxLines = 1)
+                                    Text(sms.recipient, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = if (sms.isCredit) Color(0xFF2E7D32) else ExpenseRed, maxLines = 1)
                                     Text(SimpleDateFormat("dd MMM yyyy • hh:mm a", Locale.getDefault()).format(sms.date), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 2.dp))
                                 }
                                 sms.amount?.let { Text(it, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = if (sms.isCredit) Color(0xFF2E7D32) else ExpenseRed) }
