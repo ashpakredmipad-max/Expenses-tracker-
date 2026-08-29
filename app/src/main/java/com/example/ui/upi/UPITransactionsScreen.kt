@@ -109,7 +109,7 @@ fun UPITransactionsScreen(viewModel: ExpenseViewModel) {
 
     Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         Surface(tonalElevation = 3.dp, shadowElevation = 2.dp) {
-            Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
+            Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp)) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.ReceiptLong, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(26.dp))
                     Spacer(Modifier.width(10.dp))
@@ -118,7 +118,7 @@ fun UPITransactionsScreen(viewModel: ExpenseViewModel) {
                         Text("Manage your UPI messages & tags", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
-                Spacer(Modifier.height(10.dp))
+                Spacer(Modifier.height(8.dp))
                 Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surfaceVariant) {
                     Row(Modifier.fillMaxWidth().padding(4.dp)) {
                         listOf("Messages", "Tags").forEachIndexed { index, title ->
@@ -128,7 +128,7 @@ fun UPITransactionsScreen(viewModel: ExpenseViewModel) {
                                 color = if (selected) MaterialTheme.colorScheme.primary else Color.Transparent,
                                 shape = RoundedCornerShape(12.dp)
                             ) {
-                                Text(title, modifier = Modifier.padding(vertical = 11.dp), textAlign = androidx.compose.ui.text.style.TextAlign.Center, color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.SemiBold)
+                                Text(title, modifier = Modifier.padding(vertical = 12.dp), textAlign = androidx.compose.ui.text.style.TextAlign.Center, color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.SemiBold)
                             }
                         }
                     }
@@ -180,7 +180,7 @@ fun UPITransactionsScreen(viewModel: ExpenseViewModel) {
                 }
             }
         } else {
-            Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = { selectedMonth = (selectedMonth.clone() as Calendar).apply { add(Calendar.MONTH, -1) } }) { Icon(Icons.Default.ChevronLeft, "Previous month") }
                 Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(monthTitle, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
@@ -189,12 +189,12 @@ fun UPITransactionsScreen(viewModel: ExpenseViewModel) {
                 IconButton(onClick = { selectedMonth = (selectedMonth.clone() as Calendar).apply { add(Calendar.MONTH, 1) } }) { Icon(Icons.Default.ChevronRight, "Next month") }
             }
             if (monthSms.isEmpty()) Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("No UPI transaction SMS for $monthTitle") }
-            else LazyColumn(Modifier.fillMaxSize().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp), contentPadding = PaddingValues(bottom = 24.dp)) {
+            else LazyColumn(Modifier.fillMaxSize().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(bottom = 24.dp)) {
                 items(monthSms, key = { it.id }) { sms ->
                     val matchingTag = upiTags.firstOrNull { tagsMatch(it.recipient, sms.recipient) }
                     val alreadyAdded = isAlreadyAdded(sms, allTransactions)
-                    Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp), elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)) {
-                        Column(Modifier.padding(16.dp)) {
+                    Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp), elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)) {
+                        Column(Modifier.padding(14.dp)) {
                             Row(verticalAlignment = Alignment.Top) {
                                 Box(Modifier.size(44.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer), contentAlignment = Alignment.Center) { Icon(Icons.Default.Sms, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp)) }
                                 Spacer(Modifier.width(12.dp))
@@ -204,18 +204,18 @@ fun UPITransactionsScreen(viewModel: ExpenseViewModel) {
                                 }
                                 sms.amount?.let { Text(it, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary) }
                             }
-                            Spacer(Modifier.height(12.dp))
-                            Surface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f)) {
-                                Text(sms.body, Modifier.padding(12.dp), style = MaterialTheme.typography.bodyMedium, maxLines = 4)
+                            Spacer(Modifier.height(9.dp))
+                            Surface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(13.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f)) {
+                                Text(sms.body, Modifier.padding(horizontal = 12.dp, vertical = 10.dp), style = MaterialTheme.typography.bodyMedium, maxLines = 3)
                             }
                             matchingTag?.let { tag ->
-                                Spacer(Modifier.height(10.dp)); val tagColor = CategoryIconHelper.parseColor(tag.colorHex)
+                                Spacer(Modifier.height(8.dp)); val tagColor = CategoryIconHelper.parseColor(tag.colorHex)
                                 Row(Modifier.clip(RoundedCornerShape(12.dp)).background(tagColor.copy(alpha = 0.13f)).padding(horizontal = 10.dp, vertical = 7.dp), verticalAlignment = Alignment.CenterVertically) {
                                     Icon(CategoryIconHelper.getIcon(tag.iconName), tag.tagName, tint = tagColor, modifier = Modifier.size(17.dp)); Spacer(Modifier.width(6.dp)); Text(tag.tagName, color = tagColor, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelLarge)
                                 }
                                 tag.categoryName?.takeIf { it.isNotBlank() }?.let { Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 5.dp)) }
                             }
-                            Spacer(Modifier.height(12.dp))
+                            Spacer(Modifier.height(9.dp))
                             if (alreadyAdded) {
                                 Surface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f)) {
                                     Row(Modifier.padding(horizontal = 12.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -229,8 +229,8 @@ fun UPITransactionsScreen(viewModel: ExpenseViewModel) {
                                         else if (sms.amount == null) message = "Amount could not be read from this SMS"
                                         else if (wallets.isEmpty()) message = "Please add a wallet first"
                                         else { selectedSms = sms; selectedTagForTransaction = matchingTag; showWalletDialog = true }
-                                    }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(13.dp)) { Icon(Icons.Default.Add, null, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(5.dp)); Text("Add Transaction") }
-                                    if (matchingTag == null) Button(onClick = { selectedSms = sms; showTagDialog = true }, modifier = Modifier.weight(0.72f), shape = RoundedCornerShape(13.dp)) { Icon(Icons.Default.LocalOffer, null, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(5.dp)); Text("Tag UPI") }
+                                    }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(12.dp)) { Icon(Icons.Default.Add, null, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(5.dp)); Text("Add Transaction") }
+                                    if (matchingTag == null) Button(onClick = { selectedSms = sms; showTagDialog = true }, modifier = Modifier.weight(0.72f), shape = RoundedCornerShape(12.dp)) { Icon(Icons.Default.LocalOffer, null, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(5.dp)); Text("Tag UPI") }
                                 }
                             }
                         }
