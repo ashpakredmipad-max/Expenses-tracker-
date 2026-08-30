@@ -69,8 +69,7 @@ fun WalletManagerScreen(onNavigateBack: () -> Unit) {
         topBar = {
             TopAppBar(
                 title = { Text("Manage Wallets", fontWeight = FontWeight.Bold) },
-                navigationIcon = { IconButton(onClick = onNavigateBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") } },
-                windowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0)
+                navigationIcon = { IconButton(onClick = onNavigateBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") } }
             )
         },
         floatingActionButton = {
