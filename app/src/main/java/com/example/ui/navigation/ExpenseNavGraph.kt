@@ -1,5 +1,7 @@
 package com.example.ui.navigation
 
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.foundation.layout.calculateBottomPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -122,11 +124,11 @@ fun ExpenseApp(viewModel: ExpenseViewModel, navController: NavHostController = r
             composable(Screen.Reports.route) { ReportsScreen(viewModel, { navController.navigate("add_transaction") }) }
             composable(Screen.Settings.route) { SettingsScreen(viewModel, { navController.navigate("categories") }, { navController.navigate("manage_wallets") }, { navController.navigate("manage_tags") }) }
             composable("upi_transactions") { UPITransactionsScreen(viewModel) }
-            composable("manage_tags") { TagsManagerScreen { navController.popBackStack() } }
-            composable("manage_wallets") { WalletManagerScreen { navController.popBackStack() } }
+            composable("manage_tags", enterTransition = { EnterTransition.None }, exitTransition = { ExitTransition.None }, popEnterTransition = { EnterTransition.None }, popExitTransition = { ExitTransition.None }) { TagsManagerScreen { navController.popBackStack() } }
+            composable("manage_wallets", enterTransition = { EnterTransition.None }, exitTransition = { ExitTransition.None }, popEnterTransition = { EnterTransition.None }, popExitTransition = { ExitTransition.None }) { WalletManagerScreen { navController.popBackStack() } }
             composable("add_transaction") { AddEditTransactionScreen(viewModel, 0L, { navController.popBackStack() }, { navController.navigate("categories") }) }
             composable("edit_transaction/{transactionId}", arguments = listOf(navArgument("transactionId") { type = NavType.LongType })) { entry -> AddEditTransactionScreen(viewModel, entry.arguments?.getLong("transactionId") ?: 0L, { navController.popBackStack() }, { navController.navigate("categories") }) }
-            composable("categories") { CategoriesScreen(viewModel, { navController.popBackStack() }) }
+            composable("categories", enterTransition = { EnterTransition.None }, exitTransition = { ExitTransition.None }, popEnterTransition = { EnterTransition.None }, popExitTransition = { ExitTransition.None }) { CategoriesScreen(viewModel, { navController.popBackStack() }) }
             composable("budget") { BudgetScreen(viewModel, { navController.popBackStack() }) }
         }
     }
