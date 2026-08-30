@@ -5,22 +5,31 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -28,13 +37,16 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun WalletManagerDialog(onDismiss: () -> Unit) {
+fun WalletManagerScreen(onBack: () -> Unit) {
     val wallets = remember { mutableStateListOf<Wallet>() }
     var editingWallet by remember { mutableStateOf<Wallet?>(null) }
     var showEditor by remember { mutableStateOf(false) }
@@ -55,46 +67,67 @@ fun WalletManagerDialog(onDismiss: () -> Unit) {
         }
     }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Wallets") },
-        text = {
-            Column {
-                LazyColumn(modifier = Modifier.fillMaxWidth()) {
-                    items(wallets, key = { it.id }) { wallet ->
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(wallet.name, modifier = Modifier.weight(1f).clickable {
-                                editingWallet = wallet
-                                name = wallet.name
-                                showEditor = true
-                            })
-                            IconButton(onClick = {
-                                editingWallet = wallet
-                                name = wallet.name
-                                showEditor = true
-                            }) { Icon(Icons.Default.Edit, contentDescription = "Edit") }
-                            IconButton(onClick = { deleteWallet = wallet }) {
-                                Icon(Icons.Default.Delete, contentDescription = "Delete")
-                            }
-                        }
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Manage Wallets", fontWeight = FontWeight.Bold) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 }
-                Spacer(modifier = Modifier.height(8.dp))
-                Button(onClick = {
+            )
+        },
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = {
                     editingWallet = null
                     name = ""
                     showEditor = true
-                }, modifier = Modifier.fillMaxWidth()) {
-                    Icon(Icons.Default.Add, contentDescription = null)
-                    Text(" Add Wallet")
+                },
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "Add Wallet")
+            }
+        }
+    ) { padding ->
+        LazyColumn(
+            modifier = Modifier.fillMaxSize().padding(padding),
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp, 8.dp, 16.dp, 88.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            items(wallets, key = { it.id }) { wallet ->
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(modifier = Modifier.weight(1f).clickable {
+                            editingWallet = wallet
+                            name = wallet.name
+                            showEditor = true
+                        }) {
+                            Text(wallet.name, fontWeight = FontWeight.Bold)
+                            Text("Balance: ₹${String.format("%.2f", wallet.balance)}")
+                        }
+                        IconButton(onClick = {
+                            editingWallet = wallet
+                            name = wallet.name
+                            showEditor = true
+                        }) { Icon(Icons.Default.Edit, contentDescription = "Edit") }
+                        IconButton(onClick = { deleteWallet = wallet }) {
+                            Icon(Icons.Default.Delete, contentDescription = "Delete")
+                        }
+                    }
                 }
             }
-        },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } }
-    )
+        }
+    }
 
     if (showEditor) {
         AlertDialog(
