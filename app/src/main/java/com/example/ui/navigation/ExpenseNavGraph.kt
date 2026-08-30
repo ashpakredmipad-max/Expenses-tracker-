@@ -79,6 +79,7 @@ fun ExpenseApp(viewModel: ExpenseViewModel, navController: NavHostController = r
     val currentScreen = bottomNavScreens.firstOrNull { it.route == currentRoute } ?: Screen.Dashboard
     val isBottomBarVisible = bottomNavScreens.any { it.route == currentRoute }
     val isUpiScreen = currentRoute == "upi_transactions"
+    val isManageScreen = currentRoute == "categories" || currentRoute == "manage_wallets" || currentRoute == "manage_tags"
     var menuExpanded by remember { mutableStateOf(false) }
 
     Scaffold(
@@ -108,7 +109,12 @@ fun ExpenseApp(viewModel: ExpenseViewModel, navController: NavHostController = r
             }
         }
     ) { innerPadding ->
-        NavHost(navController = navController, startDestination = Screen.Dashboard.route, modifier = Modifier.fillMaxSize().padding(innerPadding)) {
+        val navHostModifier = if (isManageScreen) {
+            Modifier.fillMaxSize()
+        } else {
+            Modifier.fillMaxSize().padding(innerPadding)
+        }
+        NavHost(navController = navController, startDestination = Screen.Dashboard.route, modifier = navHostModifier) {
             composable(Screen.Dashboard.route) { DashboardScreen(viewModel, { navController.navigate("add_transaction") }, { id -> navController.navigate("edit_transaction/$id") }, { navController.navigate(Screen.Transactions.route) }, { navController.navigate("budget") }) }
             composable(Screen.Transactions.route) { TransactionsHistoryScreen(viewModel, { navController.navigate("add_transaction") }, { id -> navController.navigate("edit_transaction/$id") }) }
             composable(Screen.Calendar.route) { CalendarScreen(viewModel) }
