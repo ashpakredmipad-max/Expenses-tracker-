@@ -54,6 +54,7 @@ import com.example.ui.settings.SettingsScreen
 import com.example.ui.settings.TagsManagerScreen
 import com.example.ui.transactions.AddEditTransactionScreen
 import com.example.ui.transactions.TransactionsHistoryScreen
+import com.example.ui.transactions.WalletManagerScreen
 import com.example.ui.upi.UPITransactionsScreen
 import com.example.viewmodel.ExpenseViewModel
 import com.google.firebase.auth.FirebaseAuth
@@ -78,6 +79,7 @@ fun ExpenseApp(viewModel: ExpenseViewModel, navController: NavHostController = r
     val isUpiScreen = currentRoute == "upi_transactions"
     val isTagsManagerScreen = currentRoute == "manage_tags"
     val isCategoriesScreen = currentRoute == "categories"
+    val isWalletManagerScreen = currentRoute == "manage_wallets"
     var menuExpanded by remember { mutableStateOf(false) }
 
     Scaffold(
@@ -107,7 +109,7 @@ fun ExpenseApp(viewModel: ExpenseViewModel, navController: NavHostController = r
             }
         }
     ) { innerPadding ->
-        val navHostModifier = if (isCategoriesScreen) {
+        val navHostModifier = if (isCategoriesScreen || isWalletManagerScreen) {
             Modifier.fillMaxSize().padding(bottom = innerPadding.calculateBottomPadding())
         } else {
             Modifier.fillMaxSize().padding(innerPadding)
@@ -117,9 +119,10 @@ fun ExpenseApp(viewModel: ExpenseViewModel, navController: NavHostController = r
             composable(Screen.Transactions.route) { TransactionsHistoryScreen(viewModel, { navController.navigate("add_transaction") }, { id -> navController.navigate("edit_transaction/$id") }) }
             composable(Screen.Calendar.route) { CalendarScreen(viewModel) }
             composable(Screen.Reports.route) { ReportsScreen(viewModel, { navController.navigate("add_transaction") }) }
-            composable(Screen.Settings.route) { SettingsScreen(viewModel, { navController.navigate("categories") }, { navController.navigate("budget") }, { navController.navigate("manage_tags") }) }
+            composable(Screen.Settings.route) { SettingsScreen(viewModel, { navController.navigate("categories") }, { navController.navigate("manage_wallets") }, { navController.navigate("manage_tags") }) }
             composable("upi_transactions") { UPITransactionsScreen(viewModel) }
             composable("manage_tags") { TagsManagerScreen { navController.popBackStack() } }
+            composable("manage_wallets") { WalletManagerScreen { navController.popBackStack() } }
             composable("add_transaction") { AddEditTransactionScreen(viewModel, 0L, { navController.popBackStack() }, { navController.navigate("categories") }) }
             composable("edit_transaction/{transactionId}", arguments = listOf(navArgument("transactionId") { type = NavType.LongType })) { entry -> AddEditTransactionScreen(viewModel, entry.arguments?.getLong("transactionId") ?: 0L, { navController.popBackStack() }, { navController.navigate("categories") }) }
             composable("categories") { CategoriesScreen(viewModel, { navController.popBackStack() }) }
