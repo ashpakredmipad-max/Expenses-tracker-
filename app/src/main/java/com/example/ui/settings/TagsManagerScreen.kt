@@ -54,8 +54,7 @@ fun TagsManagerScreen(onBack:()->Unit){
         topBar={
             TopAppBar(
                 title={Text("Manage Tags",fontWeight=FontWeight.Bold)},
-                navigationIcon={IconButton(onClick=onBack){Text("‹",style=MaterialTheme.typography.headlineMedium)}},
-                windowInsets=WindowInsets(0,0,0,0)
+                navigationIcon={IconButton(onClick=onBack){Text("‹",style=MaterialTheme.typography.headlineMedium)}
             )
         }
     ){padding->
