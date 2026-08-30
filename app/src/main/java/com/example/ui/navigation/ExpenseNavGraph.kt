@@ -1,5 +1,6 @@
 package com.example.ui.navigation
 
+import androidx.compose.foundation.layout.calculateBottomPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -77,19 +78,19 @@ fun ExpenseApp(viewModel: ExpenseViewModel, navController: NavHostController = r
     val currentScreen = bottomNavScreens.firstOrNull { it.route == currentRoute } ?: Screen.Dashboard
     val isBottomBarVisible = bottomNavScreens.any { it.route == currentRoute }
     val isUpiScreen = currentRoute == "upi_transactions"
-    val isTagsManagerScreen = currentRoute == "manage_tags"
     val isCategoriesScreen = currentRoute == "categories"
     val isWalletManagerScreen = currentRoute == "manage_wallets"
+    val isTagsManagerScreen = currentRoute == "manage_tags"
     var menuExpanded by remember { mutableStateOf(false) }
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         topBar = {
-            if (isBottomBarVisible || isUpiScreen || isTagsManagerScreen) {
+            if (isBottomBarVisible || isUpiScreen) {
                 TopAppBar(
-                    title = { Text(text = when { isUpiScreen -> "UPI Transactions"; isTagsManagerScreen -> "Manage Tags"; else -> currentScreen.title }, style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold, fontSize = 22.sp, letterSpacing = 0.5.sp)) },
+                    title = { Text(text = if (isUpiScreen) "UPI Transactions" else currentScreen.title, style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold, fontSize = 22.sp, letterSpacing = 0.5.sp)) },
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent, scrolledContainerColor = Color.Transparent),
-                    navigationIcon = { if (isUpiScreen || isTagsManagerScreen) IconButton(onClick = { navController.popBackStack() }) { Text("‹", fontSize = 36.sp) } },
+                    navigationIcon = { if (isUpiScreen) IconButton(onClick = { navController.popBackStack() }) { Text("‹", fontSize = 36.sp) } },
                     actions = {
                         if (isBottomBarVisible) {
                             IconButton(onClick = { navController.navigate("upi_transactions") }) { Text("@", fontSize = 22.sp) }
@@ -109,7 +110,7 @@ fun ExpenseApp(viewModel: ExpenseViewModel, navController: NavHostController = r
             }
         }
     ) { innerPadding ->
-        val navHostModifier = if (isCategoriesScreen || isWalletManagerScreen) {
+        val navHostModifier = if (isCategoriesScreen || isWalletManagerScreen || isTagsManagerScreen) {
             Modifier.fillMaxSize().padding(bottom = innerPadding.calculateBottomPadding())
         } else {
             Modifier.fillMaxSize().padding(innerPadding)
