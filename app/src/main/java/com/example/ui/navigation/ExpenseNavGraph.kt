@@ -2,7 +2,6 @@ package com.example.ui.navigation
 
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
-import androidx.compose.foundation.layout.calculateBottomPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -80,9 +79,6 @@ fun ExpenseApp(viewModel: ExpenseViewModel, navController: NavHostController = r
     val currentScreen = bottomNavScreens.firstOrNull { it.route == currentRoute } ?: Screen.Dashboard
     val isBottomBarVisible = bottomNavScreens.any { it.route == currentRoute }
     val isUpiScreen = currentRoute == "upi_transactions"
-    val isCategoriesScreen = currentRoute == "categories"
-    val isWalletManagerScreen = currentRoute == "manage_wallets"
-    val isTagsManagerScreen = currentRoute == "manage_tags"
     var menuExpanded by remember { mutableStateOf(false) }
 
     Scaffold(
@@ -112,12 +108,7 @@ fun ExpenseApp(viewModel: ExpenseViewModel, navController: NavHostController = r
             }
         }
     ) { innerPadding ->
-        val navHostModifier = if (isCategoriesScreen || isWalletManagerScreen || isTagsManagerScreen) {
-            Modifier.fillMaxSize().padding(bottom = innerPadding.calculateBottomPadding())
-        } else {
-            Modifier.fillMaxSize().padding(innerPadding)
-        }
-        NavHost(navController = navController, startDestination = Screen.Dashboard.route, modifier = navHostModifier) {
+        NavHost(navController = navController, startDestination = Screen.Dashboard.route, modifier = Modifier.fillMaxSize().padding(innerPadding)) {
             composable(Screen.Dashboard.route) { DashboardScreen(viewModel, { navController.navigate("add_transaction") }, { id -> navController.navigate("edit_transaction/$id") }, { navController.navigate(Screen.Transactions.route) }, { navController.navigate("budget") }) }
             composable(Screen.Transactions.route) { TransactionsHistoryScreen(viewModel, { navController.navigate("add_transaction") }, { id -> navController.navigate("edit_transaction/$id") }) }
             composable(Screen.Calendar.route) { CalendarScreen(viewModel) }
