@@ -31,8 +31,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -84,7 +84,7 @@ fun CalendarScreen(viewModel: ExpenseViewModel, modifier: Modifier = Modifier) {
 
 @Composable
 private fun MonthArrowButton(onClick: () -> Unit, contentDescription: String) {
-    IconButton(onClick = onClick, modifier = Modifier.size(40.dp).clip(CircleShape).background(MaterialTheme.colorScheme.surface).border(1.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape)) {
+    IconButton(onClick = onClick, modifier = Modifier.size(40.dp).graphicsLayer(shape = CircleShape, clip = true).background(MaterialTheme.colorScheme.surface).border(1.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape)) {
         Icon(if (contentDescription.startsWith("Previous")) Icons.Default.ChevronLeft else Icons.Default.ChevronRight, contentDescription = contentDescription, modifier = Modifier.size(21.dp))
     }
 }
@@ -95,11 +95,11 @@ private fun MonthlyOverviewCard(total: Long, count: Int, previousTotal: Long, ch
         Column(modifier = Modifier.fillMaxWidth().background(Color(0xFF272324)).padding(16.dp)) {
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(modifier = Modifier.size(34.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.10f)), contentAlignment = Alignment.Center) { Icon(Icons.Default.Payments, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp)) }
+                    Box(modifier = Modifier.size(34.dp).graphicsLayer(shape = CircleShape, clip = true).background(Color.White.copy(alpha = 0.10f)), contentAlignment = Alignment.Center) { Icon(Icons.Default.Payments, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp)) }
                     Spacer(Modifier.size(8.dp))
                     Text("MONTHLY EXPENSES", style = MaterialTheme.typography.labelMedium, color = Color.White.copy(alpha = 0.65f), fontWeight = FontWeight.Medium)
                 }
-                Box(modifier = Modifier.clip(RoundedCornerShape(20.dp)).background(Color.White).padding(horizontal = 10.dp, vertical = 5.dp)) { Text("•  $count expenses", style = MaterialTheme.typography.labelMedium, color = Color(0xFF454042), fontWeight = FontWeight.Bold) }
+                Box(modifier = Modifier.graphicsLayer(shape = RoundedCornerShape(20.dp), clip = true).background(Color.White).padding(horizontal = 10.dp, vertical = 5.dp)) { Text("•  $count expenses", style = MaterialTheme.typography.labelMedium, color = Color(0xFF454042), fontWeight = FontWeight.Bold) }
             }
             Spacer(Modifier.height(8.dp))
             Text("₹${formatAmount(total)}", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = Color.White)
@@ -119,7 +119,7 @@ private fun ExpenseBars(expensesByDay: Map<Int, Long>, maxDailyExpense: Long) {
     Row(modifier = Modifier.fillMaxWidth().height(34.dp), verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
         points.forEach { value ->
             val fraction = if (maxDailyExpense > 0) (value.toFloat() / maxDailyExpense.toFloat()).coerceIn(0.08f, 1f) else 0.05f
-            Box(modifier = Modifier.weight(1f).fillMaxHeight(fraction).clip(RoundedCornerShape(5.dp)).background(if (value > 0) Color(0xFFFF9A9F) else Color.White.copy(alpha = 0.05f)))
+            Box(modifier = Modifier.weight(1f).fillMaxHeight(fraction).graphicsLayer(shape = RoundedCornerShape(5.dp), clip = true).background(if (value > 0) Color(0xFFFF9A9F) else Color.White.copy(alpha = 0.05f)))
         }
     }
     Spacer(Modifier.height(4.dp))
@@ -137,14 +137,14 @@ private fun CalendarDay(day: Int, expenseInPaise: Long, maxDailyExpense: Long, s
     val today = Calendar.getInstance()
     val isToday = today.get(Calendar.YEAR) == selectedMonth.get(Calendar.YEAR) && today.get(Calendar.MONTH) == selectedMonth.get(Calendar.MONTH) && today.get(Calendar.DAY_OF_MONTH) == day
     val borderModifier = if (isToday) Modifier.border(2.dp, MaterialTheme.colorScheme.onSurface, RoundedCornerShape(16.dp)) else Modifier
-    Box(modifier = Modifier.fillMaxWidth().height(61.dp).then(borderModifier).clip(RoundedCornerShape(16.dp)).background(background).padding(horizontal = 3.dp, vertical = 4.dp)) {
+    Box(modifier = Modifier.fillMaxWidth().height(61.dp).then(borderModifier).graphicsLayer(shape = RoundedCornerShape(16.dp), clip = true).background(background).padding(horizontal = 3.dp, vertical = 4.dp)) {
         Column(modifier = Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.SpaceBetween) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Text(day.toString(), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
-                if (isToday) Box(Modifier.size(4.dp).clip(CircleShape).background(MaterialTheme.colorScheme.onSurface))
+                if (isToday) Box(Modifier.size(4.dp).graphicsLayer(shape = CircleShape, clip = true).background(MaterialTheme.colorScheme.onSurface))
             }
             if (expenseInPaise > 0) {
-                Box(modifier = Modifier.clip(RoundedCornerShape(7.dp)).background(Color(0xFF202020)).padding(horizontal = 3.dp, vertical = 1.dp)) { Text("₹${formatAmountWhole(expenseInPaise)}", style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp), color = Color.White, fontWeight = FontWeight.Bold, maxLines = 1) }
+                Box(modifier = Modifier.graphicsLayer(shape = RoundedCornerShape(7.dp), clip = true).background(Color(0xFF202020)).padding(horizontal = 3.dp, vertical = 1.dp)) { Text("₹${formatAmountWhole(expenseInPaise)}", style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp), color = Color.White, fontWeight = FontWeight.Bold, maxLines = 1) }
             } else Text("—", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
         }
     }
