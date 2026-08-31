@@ -21,7 +21,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
@@ -60,19 +59,8 @@ fun CalendarScreen(viewModel: ExpenseViewModel, modifier: Modifier = Modifier) {
     val maxDailyExpense = expensesByDay.values.maxOrNull() ?: 0L
     val changePercent = if (previousTotal > 0) ((monthTotal - previousTotal).toDouble() / previousTotal.toDouble() * 100).toInt() else 0
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(horizontal = 16.dp)
-    ) {
-        // Compact month selector: no unnecessary gap below the app toolbar.
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 2.dp, bottom = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
+    Column(modifier = modifier.fillMaxSize().padding(horizontal = 16.dp)) {
+        Row(modifier = Modifier.fillMaxWidth().padding(top = 2.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
             MonthArrowButton(onClick = { viewModel.previousMonth() }, contentDescription = "Previous month")
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(monthTitle, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
@@ -80,52 +68,23 @@ fun CalendarScreen(viewModel: ExpenseViewModel, modifier: Modifier = Modifier) {
             }
             MonthArrowButton(onClick = { viewModel.nextMonth() }, contentDescription = "Next month")
         }
-
         MonthlyOverviewCard(monthTotal, monthExpenses.size, previousTotal, changePercent, expensesByDay, maxDailyExpense)
         Spacer(Modifier.height(12.dp))
-
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 2.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly
-        ) {
-            listOf("SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT").forEach {
-                Text(it, modifier = Modifier.weight(1f), textAlign = TextAlign.Center, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
+        Row(Modifier.fillMaxWidth().padding(horizontal = 2.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
+            listOf("SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT").forEach { Text(it, modifier = Modifier.weight(1f), textAlign = TextAlign.Center, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant) }
         }
         Spacer(Modifier.height(6.dp))
-
         val cells = buildList<Int?> { repeat(firstWeekday) { add(null) }; for (day in 1..daysInMonth) add(day) }
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(7),
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            items(cells) { day ->
-                if (day == null) Spacer(Modifier.height(68.dp))
-                else CalendarDay(day, expensesByDay[day] ?: 0L, maxDailyExpense, calendar)
-            }
+        LazyVerticalGrid(columns = GridCells.Fixed(7), modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            items(cells) { day -> if (day == null) Spacer(Modifier.height(64.dp)) else CalendarDay(day, expensesByDay[day] ?: 0L, maxDailyExpense, calendar) }
         }
     }
 }
 
 @Composable
 private fun MonthArrowButton(onClick: () -> Unit, contentDescription: String) {
-    IconButton(
-        onClick = onClick,
-        modifier = Modifier
-            .size(46.dp)
-            .clip(CircleShape)
-            .background(MaterialTheme.colorScheme.surface)
-            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape)
-    ) {
-        Icon(
-            if (contentDescription.startsWith("Previous")) Icons.Default.ChevronLeft else Icons.Default.ChevronRight,
-            contentDescription = contentDescription,
-            modifier = Modifier.size(24.dp)
-        )
+    IconButton(onClick = onClick, modifier = Modifier.size(46.dp).clip(CircleShape).background(MaterialTheme.colorScheme.surface).border(1.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape)) {
+        Icon(if (contentDescription.startsWith("Previous")) Icons.Default.ChevronLeft else Icons.Default.ChevronRight, contentDescription = contentDescription, modifier = Modifier.size(24.dp))
     }
 }
 
@@ -177,14 +136,14 @@ private fun CalendarDay(day: Int, expenseInPaise: Long, maxDailyExpense: Long, s
     val today = Calendar.getInstance()
     val isToday = today.get(Calendar.YEAR) == selectedMonth.get(Calendar.YEAR) && today.get(Calendar.MONTH) == selectedMonth.get(Calendar.MONTH) && today.get(Calendar.DAY_OF_MONTH) == day
     val borderModifier = if (isToday) Modifier.border(2.dp, MaterialTheme.colorScheme.onSurface, RoundedCornerShape(18.dp)) else Modifier
-    Box(modifier = Modifier.fillMaxWidth().height(68.dp).then(borderModifier).clip(RoundedCornerShape(18.dp)).background(background).padding(7.dp)) {
+    Box(modifier = Modifier.fillMaxWidth().height(64.dp).then(borderModifier).clip(RoundedCornerShape(16.dp)).background(background).padding(horizontal = 4.dp, vertical = 5.dp)) {
         Column(modifier = Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.SpaceBetween) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Text(day.toString(), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelMedium)
                 if (isToday) Box(Modifier.size(5.dp).clip(CircleShape).background(MaterialTheme.colorScheme.onSurface))
             }
             if (expenseInPaise > 0) {
-                Box(modifier = Modifier.clip(RoundedCornerShape(10.dp)).background(Color(0xFF202020)).padding(horizontal = 6.dp, vertical = 3.dp)) { Text("₹${formatAmount(expenseInPaise)}", style = MaterialTheme.typography.labelSmall, color = Color.White, fontWeight = FontWeight.Bold) }
+                Box(modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(Color(0xFF202020)).padding(horizontal = 4.dp, vertical = 2.dp)) { Text("₹${formatAmount(expenseInPaise)}", style = MaterialTheme.typography.labelSmall, color = Color.White, fontWeight = FontWeight.Bold) }
             } else Text("—", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
         }
     }
