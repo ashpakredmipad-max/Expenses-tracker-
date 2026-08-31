@@ -31,7 +31,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -61,7 +61,7 @@ fun CalendarScreen(viewModel: ExpenseViewModel, modifier: Modifier = Modifier) {
     val changePercent = if (previousTotal > 0) ((monthTotal - previousTotal).toDouble() / previousTotal.toDouble() * 100).toInt() else 0
 
     Column(modifier = modifier.fillMaxSize().padding(horizontal = 16.dp)) {
-        Row(modifier = Modifier.fillMaxWidth().padding(top = 2.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+        Row(modifier = Modifier.fillMaxWidth().padding(top = 0.dp, bottom = 5.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
             MonthArrowButton(onClick = { viewModel.previousMonth() }, contentDescription = "Previous month")
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(monthTitle, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
@@ -84,8 +84,8 @@ fun CalendarScreen(viewModel: ExpenseViewModel, modifier: Modifier = Modifier) {
 
 @Composable
 private fun MonthArrowButton(onClick: () -> Unit, contentDescription: String) {
-    IconButton(onClick = onClick, modifier = Modifier.size(46.dp).clip(CircleShape).background(MaterialTheme.colorScheme.surface).border(1.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape)) {
-        Icon(if (contentDescription.startsWith("Previous")) Icons.Default.ChevronLeft else Icons.Default.ChevronRight, contentDescription = contentDescription, modifier = Modifier.size(24.dp))
+    IconButton(onClick = onClick, modifier = Modifier.size(40.dp).clip(CircleShape).background(MaterialTheme.colorScheme.surface).border(1.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape)) {
+        Icon(if (contentDescription.startsWith("Previous")) Icons.Default.ChevronLeft else Icons.Default.ChevronRight, contentDescription = contentDescription, modifier = Modifier.size(21.dp))
     }
 }
 
