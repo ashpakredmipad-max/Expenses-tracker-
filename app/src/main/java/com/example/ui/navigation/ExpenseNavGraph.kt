@@ -125,7 +125,7 @@ fun ExpenseApp(viewModel: ExpenseViewModel, navController: NavHostController = r
             composable("manage_wallets", enterTransition = { EnterTransition.None }, exitTransition = { ExitTransition.None }, popEnterTransition = { EnterTransition.None }, popExitTransition = { ExitTransition.None }) { WalletManagerScreen { navController.popBackStack() } }
             composable("add_transaction") { AddEditTransactionScreen(viewModel, 0L, { navController.popBackStack() }, { navController.navigate("categories") }) }
             composable("edit_transaction/{transactionId}", arguments = listOf(navArgument("transactionId") { type = NavType.LongType })) { entry -> AddEditTransactionScreen(viewModel, entry.arguments?.getLong("transactionId") ?: 0L, { navController.popBackStack() }, { navController.navigate("categories") }) }
-            composable("categories", enterTransition = { EnterTransition.None }, exitTransition = { ExitTransition.None }, popEnterTransition = { EnterTransition.None }, popExitTransition = { ExitTransition.None }) { CategoriesScreen(viewModel, { navController.popBackStack(Screen.Settings.route, false) }) }
+            composable("categories", enterTransition = { EnterTransition.None }, exitTransition = { ExitTransition.None }, popEnterTransition = { EnterTransition.None }, popExitTransition = { ExitTransition.None }) { CategoriesScreen(viewModel, { navController.navigate(Screen.Settings.route) { popUpTo("categories") { inclusive = true }; launchSingleTop = true } }) }
             composable("budget") { BudgetScreen(viewModel, { navController.popBackStack() }) }
         }
     }
