@@ -56,6 +56,7 @@ import com.example.ui.settings.SettingsScreen
 import com.example.ui.settings.TagsManagerScreen
 import com.example.ui.transactions.AddEditTransactionScreen
 import com.example.ui.transactions.TransactionsHistoryScreen
+import com.example.ui.transactions.TransferScreen
 import com.example.ui.transactions.WalletManagerScreen
 import com.example.ui.upi.UPITransactionsScreen
 import com.example.viewmodel.ExpenseViewModel
@@ -79,22 +80,26 @@ fun ExpenseApp(viewModel: ExpenseViewModel, navController: NavHostController = r
     val currentScreen = bottomNavScreens.firstOrNull { it.route == currentRoute } ?: Screen.Dashboard
     val isBottomBarVisible = bottomNavScreens.any { it.route == currentRoute }
     val isUpiScreen = currentRoute == "upi_transactions"
+    val isTransferScreen = currentRoute == "transfer"
     val isManageScreen = currentRoute == "categories" || currentRoute == "manage_wallets" || currentRoute == "manage_tags"
     var menuExpanded by remember { mutableStateOf(false) }
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         topBar = {
-            if (isBottomBarVisible || isUpiScreen) {
+            if (isBottomBarVisible || isUpiScreen || isTransferScreen) {
                 TopAppBar(
-                    title = { Text(text = if (isUpiScreen) "UPI Transactions" else currentScreen.title, style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold, fontSize = 22.sp, letterSpacing = 0.5.sp)) },
+                    title = { Text(text = when { isUpiScreen -> "UPI Transactions"; isTransferScreen -> "Transfer"; else -> currentScreen.title }, style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold, fontSize = 22.sp, letterSpacing = 0.5.sp)) },
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent, scrolledContainerColor = Color.Transparent),
-                    navigationIcon = { if (isUpiScreen) IconButton(onClick = { navController.popBackStack() }) { Text("‹", fontSize = 36.sp) } },
+                    navigationIcon = { if (isUpiScreen || isTransferScreen) IconButton(onClick = { navController.popBackStack() }) { Text("‹", fontSize = 36.sp) } },
                     actions = {
                         if (isBottomBarVisible) {
                             IconButton(onClick = { navController.navigate("upi_transactions") }) { Text("@", fontSize = 22.sp) }
                             IconButton(onClick = { menuExpanded = true }) { Icon(Icons.Filled.MoreVert, contentDescription = "More options") }
-                            DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) { DropdownMenuItem(text = { Text("Logout") }, onClick = { menuExpanded = false; FirebaseAuth.getInstance().signOut() }) }
+                            DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                                DropdownMenuItem(text = { Text("Transfer between wallets") }, onClick = { menuExpanded = false; navController.navigate("transfer") })
+                                DropdownMenuItem(text = { Text("Logout") }, onClick = { menuExpanded = false; FirebaseAuth.getInstance().signOut() })
+                            }
                         }
                     }
                 )
@@ -109,11 +114,7 @@ fun ExpenseApp(viewModel: ExpenseViewModel, navController: NavHostController = r
             }
         }
     ) { innerPadding ->
-        val navHostModifier = if (isManageScreen) {
-            Modifier.fillMaxSize()
-        } else {
-            Modifier.fillMaxSize().padding(innerPadding)
-        }
+        val navHostModifier = if (isManageScreen) Modifier.fillMaxSize() else Modifier.fillMaxSize().padding(innerPadding)
         NavHost(navController = navController, startDestination = Screen.Dashboard.route, modifier = navHostModifier) {
             composable(Screen.Dashboard.route) { DashboardScreen(viewModel, { navController.navigate("add_transaction") }, { id -> navController.navigate("edit_transaction/$id") }, { navController.navigate(Screen.Transactions.route) }, { navController.navigate("budget") }) }
             composable(Screen.Transactions.route) { TransactionsHistoryScreen(viewModel, { navController.navigate("add_transaction") }, { id -> navController.navigate("edit_transaction/$id") }) }
@@ -121,11 +122,12 @@ fun ExpenseApp(viewModel: ExpenseViewModel, navController: NavHostController = r
             composable(Screen.Reports.route) { ReportsScreen(viewModel, { navController.navigate("add_transaction") }) }
             composable(Screen.Settings.route) { SettingsScreen(viewModel, { navController.navigate("categories") }, { navController.navigate("manage_wallets") }, { navController.navigate("manage_tags") }) }
             composable("upi_transactions") { UPITransactionsScreen(viewModel) }
-            composable("manage_tags", enterTransition = { EnterTransition.None }, exitTransition = { ExitTransition.None }, popEnterTransition = { EnterTransition.None }, popExitTransition = { ExitTransition.None }) { TagsManagerScreen { navController.popBackStack() } }
-            composable("manage_wallets", enterTransition = { EnterTransition.None }, exitTransition = { ExitTransition.None }, popEnterTransition = { EnterTransition.None }, popExitTransition = { ExitTransition.None }) { WalletManagerScreen { navController.popBackStack() } }
+            composable("transfer") { TransferScreen { navController.popBackStack() } }
+            composable("manage_tags", enterTransition = { EnterTransition.None }, exitTransition = { ExitTransition.None }, popEnterTransition = { EnterTransition.None }, popExitTransition = { EnterTransition.None }) { TagsManagerScreen { navController.popBackStack() } }
+            composable("manage_wallets", enterTransition = { EnterTransition.None }, exitTransition = { ExitTransition.None }, popEnterTransition = { EnterTransition.None }, popExitTransition = { EnterTransition.None }) { WalletManagerScreen { navController.popBackStack() } }
             composable("add_transaction") { AddEditTransactionScreen(viewModel, 0L, { navController.popBackStack() }, { navController.navigate("categories") }) }
             composable("edit_transaction/{transactionId}", arguments = listOf(navArgument("transactionId") { type = NavType.LongType })) { entry -> AddEditTransactionScreen(viewModel, entry.arguments?.getLong("transactionId") ?: 0L, { navController.popBackStack() }, { navController.navigate("categories") }) }
-            composable("categories", enterTransition = { EnterTransition.None }, exitTransition = { ExitTransition.None }, popEnterTransition = { EnterTransition.None }, popExitTransition = { ExitTransition.None }) { CategoriesScreen(viewModel, { navController.navigate(Screen.Settings.route) { popUpTo("categories") { inclusive = true }; launchSingleTop = true } }) }
+            composable("categories", enterTransition = { EnterTransition.None }, exitTransition = { ExitTransition.None }, popEnterTransition = { EnterTransition.None }, popExitTransition = { EnterTransition.None }) { CategoriesScreen(viewModel, { navController.navigate(Screen.Settings.route) { popUpTo("categories") { inclusive = true }; launchSingleTop = true } }) }
             composable("budget") { BudgetScreen(viewModel, { navController.popBackStack() }) }
         }
     }
