@@ -21,6 +21,28 @@ object WalletBalanceManager {
             .addOnCompleteListener { onComplete() }
     }
 
+    fun transfer(
+        fromWalletId: String,
+        toWalletId: String,
+        amount: Double,
+        onSuccess: () -> Unit,
+        onError: () -> Unit
+    ) {
+        val uid = FirebaseAuth.getInstance().currentUser?.uid
+        if (uid == null || fromWalletId == toWalletId || amount <= 0.0) {
+            onError()
+            return
+        }
+        val db = FirebaseFirestore.getInstance()
+        val wallets = db.collection("users").document(uid).collection("wallets")
+        val from = wallets.document(fromWalletId)
+        val to = wallets.document(toWalletId)
+        val batch = db.batch()
+        batch.update(from, "balance", FieldValue.increment(-amount))
+        batch.update(to, "balance", FieldValue.increment(amount))
+        batch.commit().addOnSuccessListener { onSuccess() }.addOnFailureListener { onError() }
+    }
+
     fun resetAllWalletBalances(onComplete: () -> Unit, onError: () -> Unit) {
         val uid = FirebaseAuth.getInstance().currentUser?.uid
         if (uid == null) {
