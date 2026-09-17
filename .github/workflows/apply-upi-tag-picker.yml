@@ -1,6 +1,9 @@
 name: Apply saved UPI tag picker
 
 on:
+  push:
+    paths:
+      - '.github/workflows/apply-upi-tag-picker.yml'
   workflow_dispatch:
 
 permissions:
