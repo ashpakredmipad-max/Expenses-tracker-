@@ -1,7 +1,9 @@
 name: Fix UPI tag picker compile
 
 on:
-  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/fix-upi-tag-picker.yml'
 
 jobs:
   fix:
