@@ -327,7 +327,7 @@ private fun UpiWalletSelectionDialog(sms: UpiSms, tag: UpiTag, wallets: List<Wal
     }, confirmButton = {}, dismissButton = { TextButton(enabled = !saving, onClick = onDismiss) { Text("Cancel") } })
 }
 
-@optIn(ExperimentalLayoutApi(::class)\n@Composable\n@OptIn(ExperimentalLayoutApi::class)
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun TagUpiDialog(sms: UpiSms, categories: List<CategoryEntity>, onDismiss: () -> Unit, onSaved: (String) -> Unit) {
     val scope = rememberCoroutineScope()
